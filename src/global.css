@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "uniwind";
+
+@import "heroui-native/styles";
+
+/* End-user path: heroui-native lives in the project's node_modules, one
+   level up from this src/global.css file. */
+@source '../node_modules/heroui-native/lib';
+
+/*
+ * AfyaQueue theme
+ *
+ * This file is the single source of truth for every color, shadow and the
+ * radius base. HeroUI Native components read these variables directly;
+ * app code reads them through Tailwind classes (bg-accent, text-muted) or
+ * the hooks exported from src/design-system. Do not copy these values
+ * into TypeScript.
+ *
+ * Every HeroUI theme must define the same variable set (light and dark).
+ * Contrast notes (WCAG 2.2): text pairs >= 4.5:1, field borders >= 3:1.
+ */
+
+@theme {
+  /* Radius base. HeroUI derives radius-xs..4xl from it; keep in sync with
+     RADIUS_BASE in src/design-system/radius.ts. */
+  --radius: 0.5rem;
+  --field-radius: calc(var(--radius) * 2);
+
+  --field-border-width: 1px;
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      /* Base: white is the dominant surface */
+      --background: #ffffff;
+      --foreground: #1c1e26; /* charcoal ink, 16.6:1 on white */
+
+      --surface: #ffffff;
+      --surface-foreground: var(--foreground);
+      --surface-secondary: #fff8f2; /* warm cream */
+      --surface-secondary-foreground: var(--foreground);
+      --surface-tertiary: #fbefe5; /* soft peach */
+      --surface-tertiary-foreground: var(--foreground);
+
+      --overlay: #ffffff;
+      --overlay-foreground: var(--foreground);
+      --backdrop: rgba(28, 30, 38, 0.32);
+
+      --muted: #646875; /* 5.6:1 on white, 5.3:1 on cream */
+
+      --default: #f4f0ec;
+      --default-foreground: var(--foreground);
+
+      /* Brand: Afya orange. Accessible with white labels (4.7:1). */
+      --accent: #c94a0a;
+      --accent-foreground: #ffffff;
+
+      /* Form fields: white with a visible 3:1 boundary */
+      --field-background: #ffffff;
+      --field-foreground: var(--foreground);
+      --field-placeholder: var(--muted);
+      --field-border: #958e86;
+
+      /* Status: green = success, red = destructive/error only */
+      --success: #17804f;
+      --success-foreground: #ffffff;
+      --warning: #e3a008;
+      --warning-foreground: var(--foreground);
+      --danger: #c8312f;
+      --danger-foreground: #ffffff;
+
+      --segment: #ffffff;
+      --segment-foreground: var(--foreground);
+
+      --border: #efeae5;
+      --separator: #e8e2dc;
+      --focus: var(--accent);
+      --link: var(--accent);
+
+      /* Restrained, warm-tinted elevation */
+      --surface-shadow: 0 1px 2px 0 rgba(28, 30, 38, 0.04), 0 1px 1px 0 rgba(28, 30, 38, 0.03);
+      --overlay-shadow: 0 12px 32px 0 rgba(28, 30, 38, 0.1), 0 2px 6px 0 rgba(28, 30, 38, 0.04);
+      --field-shadow: 0 0 0 0 transparent inset;
+
+      /* AfyaQueue brand extensions */
+      --brand-vivid: #f26a1b; /* decorative only: illustrations, large icons (3:1) */
+      --brand-subtle: #fdeadb; /* peach tint for brand-emphasis surfaces */
+      --brand-subtle-foreground: #b23f08; /* 5.0:1 on brand-subtle */
+    }
+
+    @variant dark {
+      --background: #121317;
+      --foreground: #f5f2ef;
+
+      --surface: #1c1d22;
+      --surface-foreground: var(--foreground);
+      --surface-secondary: #23242a;
+      --surface-secondary-foreground: var(--foreground);
+      --surface-tertiary: #2a2b31;
+      --surface-tertiary-foreground: var(--foreground);
+
+      --overlay: #1f2025;
+      --overlay-foreground: var(--foreground);
+      --backdrop: rgba(0, 0, 0, 0.5);
+
+      --muted: #a39e99;
+
+      --default: #2a2b31;
+      --default-foreground: var(--foreground);
+
+      --accent: #ff7a33;
+      --accent-foreground: #16171c;
+
+      --field-background: #1c1d22;
+      --field-foreground: var(--foreground);
+      --field-placeholder: var(--muted);
+      --field-border: #7a746e;
+
+      --success: #3dbe7e;
+      --success-foreground: #16171c;
+      --warning: #f2b53a;
+      --warning-foreground: #16171c;
+      --danger: #f0605a;
+      --danger-foreground: #16171c;
+
+      --segment: #2a2b31;
+      --segment-foreground: var(--foreground);
+
+      --border: #2a2b31;
+      --separator: #2e2f35;
+      --focus: var(--accent);
+      --link: var(--accent);
+
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+      --field-shadow: 0 0 0 0 transparent inset;
+
+      --brand-vivid: #ff7a33;
+      --brand-subtle: #3a2418;
+      --brand-subtle-foreground: #ffb38a;
+    }
+  }
+}
+
+/* Expose the brand extensions as Tailwind colors: bg-brand-subtle, text-brand-vivid */
+@theme inline {
+  --color-brand-vivid: var(--brand-vivid);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-subtle-foreground: var(--brand-subtle-foreground);
+}
