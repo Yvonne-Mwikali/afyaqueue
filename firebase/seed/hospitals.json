@@ -1,0 +1,9 @@
+{
+  "afyacare-hospital": {
+    "name": "AfyaCare Hospital",
+    "shortName": "AfyaCare",
+    "location": "Nairobi",
+    "timeZone": "Africa/Nairobi",
+    "active": true
+  }
+}

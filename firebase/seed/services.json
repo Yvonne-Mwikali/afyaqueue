@@ -1,0 +1,76 @@
+{
+  "general-care": {
+    "name": "General Care",
+    "shortName": "General",
+    "description": "Routine checkups, illness & more",
+    "category": "primary",
+    "icon": "stethoscope",
+    "providerTitle": "General Practitioner",
+    "durationMinutes": 20,
+    "modes": ["in-clinic", "online"],
+    "active": true,
+    "sortOrder": 10,
+    "hospitalId": "afyacare-hospital"
+  },
+  "dental": {
+    "name": "Dental",
+    "description": "Oral health, preventive and restorative care",
+    "category": "specialty",
+    "icon": "tooth-outline",
+    "providerTitle": "Dentist",
+    "durationMinutes": 45,
+    "modes": ["in-clinic"],
+    "active": true,
+    "sortOrder": 20,
+    "hospitalId": "afyacare-hospital"
+  },
+  "oncology": {
+    "name": "Oncology",
+    "description": "Cancer care and specialist consultations",
+    "category": "specialty",
+    "icon": "ribbon",
+    "tint": "pink",
+    "providerTitle": "Oncologist",
+    "durationMinutes": 30,
+    "modes": ["in-clinic", "online"],
+    "active": true,
+    "sortOrder": 30,
+    "hospitalId": "afyacare-hospital"
+  },
+  "pediatrics": {
+    "name": "Pediatrics",
+    "description": "Complete care for your child",
+    "category": "primary",
+    "icon": "baby-face-outline",
+    "providerTitle": "Paediatrician",
+    "durationMinutes": 30,
+    "modes": ["in-clinic", "online"],
+    "active": true,
+    "sortOrder": 40,
+    "hospitalId": "afyacare-hospital"
+  },
+  "dermatology": {
+    "name": "Dermatology",
+    "description": "Skin, hair and nail care",
+    "category": "specialty",
+    "icon": "hand-back-right-outline",
+    "providerTitle": "Dermatologist",
+    "durationMinutes": 30,
+    "modes": ["in-clinic", "online"],
+    "active": true,
+    "sortOrder": 50,
+    "hospitalId": "afyacare-hospital"
+  },
+  "laboratory": {
+    "name": "Laboratory",
+    "description": "Diagnostic tests and screenings",
+    "category": "diagnostic",
+    "icon": "flask-outline",
+    "providerTitle": "Pathologist",
+    "durationMinutes": 15,
+    "modes": ["in-clinic"],
+    "active": true,
+    "sortOrder": 60,
+    "hospitalId": "afyacare-hospital"
+  }
+}

@@ -1,0 +1,3 @@
+# Firebase (JS SDK) is the MVP backend
+
+AfyaQueue uses Firebase Authentication (email/password) and Cloud Firestore through the **Firebase JavaScript SDK**, not `@react-native-firebase`, because development happens in Expo Go, which can't load native modules. Auth sessions persist with `getReactNativePersistence(AsyncStorage)`. Screens never import Firebase: feature interfaces (`AuthService`, `ServiceRepository`) have Firebase implementations, chosen in `src/lib/backend.ts`, with in-memory mocks as a fallback until a project is configured. Storage and Cloud Functions are deferred until a feature needs them (check-in numbering and queue control will). Schema: [firebase-data-model.md](../firebase-data-model.md).

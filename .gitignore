@@ -33,8 +33,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# Local env files
+# Local env files (.env.example is committed; real values never are)
+.env
 .env*.local
+
+# Firebase Admin service-account keys (local admin scripts only; never commit)
+firebase/service-account*.json
+*-firebase-adminsdk-*.json
 
 # TypeScript
 *.tsbuildinfo

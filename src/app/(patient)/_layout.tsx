@@ -1,31 +1,36 @@
-import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useThemeColor } from "heroui-native";
+import { Tabs } from "expo-router/tabs";
 import type { JSX } from "react";
 
-export default function PatientLayout(): JSX.Element {
-  const accent = useThemeColor("accent");
+import { CradleTabBar, type CradleTabItem } from "@/components/navigation/cradle-tab-bar";
 
+// Order matters: the first half renders left of the centre Contact circle.
+const TAB_ITEMS: Record<string, CradleTabItem> = {
+  index: { label: "Home", icon: "home-outline", activeIcon: "home" },
+  appointments: {
+    label: "Appointments",
+    icon: "calendar-month-outline",
+    activeIcon: "calendar-month",
+  },
+  queue: { label: "Queue", icon: "account-group-outline", activeIcon: "account-group" },
+  profile: { label: "Profile", icon: "account-outline", activeIcon: "account" },
+};
+
+const CENTER = { routeName: "contact", label: "Contact", icon: "phone-in-talk" } as const;
+
+// Custom JS tab bar (not NativeTabs): native tabs cannot draw the cradled
+// centre circle. Navigation state still comes from Expo Router.
+export default function PatientLayout(): JSX.Element {
   return (
-    <NativeTabs tintColor={accent}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} md="home" />
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="appointments">
-        <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
-        <NativeTabs.Trigger.Label>Appointments</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="queue">
-        <NativeTabs.Trigger.Icon sf="list.number" md="format_list_numbered" />
-        <NativeTabs.Trigger.Label>Queue</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Icon
-          sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }}
-          md="account_circle"
-        />
-        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <CradleTabBar {...props} items={TAB_ITEMS} center={CENTER} />}
+    >
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="appointments" />
+      <Tabs.Screen name="contact" />
+      <Tabs.Screen name="queue" />
+      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="services" options={{ href: null }} />
+    </Tabs>
   );
 }

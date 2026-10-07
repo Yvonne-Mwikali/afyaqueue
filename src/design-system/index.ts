@@ -1,4 +1,6 @@
 export * from "./colors";
+export * from "./fonts";
+export * from "./icons";
 export * from "./motion";
 export * from "./navigation";
 export * from "./radius";

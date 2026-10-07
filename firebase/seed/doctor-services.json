@@ -1,0 +1,86 @@
+[
+  {
+    "doctorId": "njeri-mwangi",
+    "serviceId": "oncology",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "daniel-okello",
+    "serviceId": "oncology",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "amina-hassan",
+    "serviceId": "oncology",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "kofi-mensah",
+    "serviceId": "oncology",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "grace-wanjiru",
+    "serviceId": "general-care",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "peter-otieno",
+    "serviceId": "general-care",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "samuel-okoye",
+    "serviceId": "dental",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "faith-achieng",
+    "serviceId": "dental",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "amina-bello",
+    "serviceId": "pediatrics",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "joseph-kamau",
+    "serviceId": "pediatrics",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "joseph-kamau",
+    "serviceId": "general-care",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "lucy-mutua",
+    "serviceId": "dermatology",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "brian-kiprop",
+    "serviceId": "dermatology",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  },
+  {
+    "doctorId": "ruth-njoki",
+    "serviceId": "laboratory",
+    "active": true,
+    "hospitalId": "afyacare-hospital"
+  }
+]

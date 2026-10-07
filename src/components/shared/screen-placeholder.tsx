@@ -1,9 +1,9 @@
 import { Typography } from "heroui-native";
 import type { JSX } from "react";
-import { ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View } from "react-native";
 
-import { layout, textRole } from "@/design-system";
+import { Screen } from "@/components/ui/screen";
+import { textRole } from "@/design-system";
 
 type ScreenPlaceholderProps = {
   title: string;
@@ -15,17 +15,8 @@ type ScreenPlaceholderProps = {
  * Replace per route as each screen is built; delete once none remain.
  */
 export function ScreenPlaceholder({ title, description }: ScreenPlaceholderProps): JSX.Element {
-  const insets = useSafeAreaInsets();
-
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{
-        paddingTop: insets.top + layout.sectionGap,
-        paddingHorizontal: layout.screenGutter,
-      }}
-    >
+    <Screen>
       <View className="gap-2">
         <Typography.Heading type={textRole.screenTitle.type}>{title}</Typography.Heading>
         {description ? (
@@ -34,6 +25,6 @@ export function ScreenPlaceholder({ title, description }: ScreenPlaceholderProps
           </Typography.Paragraph>
         ) : null}
       </View>
-    </ScrollView>
+    </Screen>
   );
 }

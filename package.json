@@ -17,16 +17,21 @@
     "check": "npm run typecheck && npm run lint && npm run format:check"
   },
   "dependencies": {
+    "@expo-google-fonts/nunito-sans": "^0.4.2",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "^5.2.14",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-masked-view/masked-view": "0.3.2",
     "expo": "~57.0.24",
+    "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.19",
     "expo-font": "~57.0.4",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.22",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
+    "firebase": "^12.19.0",
     "heroui-native": "^1.0.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -46,6 +51,7 @@
     "@types/react": "~19.2.15",
     "eslint": "^9.39.4",
     "eslint-config-expo": "~57.0.2",
+    "firebase-admin": "^14.5.0",
     "prettier": "^3.8.3",
     "typescript": "~6.0.3"
   }

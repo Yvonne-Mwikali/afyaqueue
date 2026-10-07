@@ -1,6 +1,6 @@
 # State management
 
-**Decision status:** no state library is installed. This document classifies AfyaQueue's state and records the recommended direction, to be confirmed when the backend and auth provider are chosen.
+**Decision status:** no state library is installed. Backend: Firebase ([ADR 0003](./adr/0003-firebase-js-sdk-backend.md)). This document classifies AfyaQueue's state and records the recommended direction, to be confirmed when the backend and auth provider are chosen.
 
 ## Classification
 
@@ -16,9 +16,9 @@
 
 **Local UI state:** `useState` / `useReducer`. Lift to the nearest shared parent; use React context only for genuinely subtree-wide UI state. No library.
 
-**Persisted client state:** a small typed wrapper in `src/lib/` over a key-value store. Candidates: `expo-sqlite/kv-store` or `react-native-mmkv` (the latter requires a development build). Choose when the first persisted value is needed.
+**Persisted client state:** `src/lib/storage.ts`, a small wrapper over AsyncStorage (already required by Firebase Auth). First use: the theme preference.
 
-**Authentication / session state:** one `SessionProvider` (React context) exposing `{ status, user, role }`. Tokens are stored with `expo-secure-store`, never in plain storage. Route protection uses Expo Router's `Stack.Protected` guards in `src/app/_layout.tsx`, keyed on session status and role. The provider adapts whichever auth service is chosen behind an interface in `src/features/auth/`.
+**Authentication / session state:** `SessionProvider` (`src/features/auth/session.tsx`) exposes `{ status, user }` from an `AuthService`. Firebase Auth persists its session with `getReactNativePersistence(AsyncStorage)` (app-private storage; the JS SDK can't use `expo-secure-store` for this). Route protection uses `Stack.Protected` in `src/app/_layout.tsx`; staff role guards come with the staff UI.
 
 **Server state:** a server-cache library is the expected fit (caching, deduplication, retries, background refetch, offline-tolerant UI). TanStack Query is the leading candidate. **Do not add it until the first real server read exists**, and re-evaluate if the chosen backend ships its own client cache. Screens never call the network directly; they call feature hooks, which call repository interfaces (see [architecture.md](./architecture.md)).
 

@@ -1,0 +1,145 @@
+{
+  "njeri-mwangi": {
+    "name": "Dr. Njeri Mwangi",
+    "specialty": "Consultant Oncologist",
+    "hospital": "AfyaCare Hospital",
+    "initials": "NM",
+    "rating": 4.9,
+    "reviewCount": 120,
+    "active": true,
+    "sortOrder": 10,
+    "hospitalId": "afyacare-hospital"
+  },
+  "daniel-okello": {
+    "name": "Dr. Daniel Okello",
+    "specialty": "Medical Oncologist",
+    "hospital": "AfyaCare Hospital",
+    "initials": "DO",
+    "rating": 4.8,
+    "reviewCount": 98,
+    "active": true,
+    "sortOrder": 20,
+    "hospitalId": "afyacare-hospital"
+  },
+  "amina-hassan": {
+    "name": "Dr. Amina Hassan",
+    "specialty": "Radiation Oncologist",
+    "hospital": "Wellness Centre",
+    "initials": "AH",
+    "rating": 4.9,
+    "reviewCount": 86,
+    "active": true,
+    "sortOrder": 30,
+    "hospitalId": "afyacare-hospital"
+  },
+  "kofi-mensah": {
+    "name": "Dr. Kofi Mensah",
+    "specialty": "Clinical Oncologist",
+    "hospital": "City Hospital",
+    "initials": "KM",
+    "rating": 4.7,
+    "reviewCount": 74,
+    "active": true,
+    "sortOrder": 40,
+    "hospitalId": "afyacare-hospital"
+  },
+  "grace-wanjiru": {
+    "name": "Dr. Grace Wanjiru",
+    "specialty": "General Practitioner",
+    "hospital": "AfyaCare Hospital",
+    "initials": "GW",
+    "rating": 4.8,
+    "reviewCount": 142,
+    "active": true,
+    "sortOrder": 50,
+    "hospitalId": "afyacare-hospital"
+  },
+  "peter-otieno": {
+    "name": "Dr. Peter Otieno",
+    "specialty": "Family Physician",
+    "hospital": "City Hospital",
+    "initials": "PO",
+    "rating": 4.6,
+    "reviewCount": 88,
+    "active": true,
+    "sortOrder": 60,
+    "hospitalId": "afyacare-hospital"
+  },
+  "samuel-okoye": {
+    "name": "Dr. Samuel Okoye",
+    "specialty": "Dental Surgeon",
+    "hospital": "AfyaCare Hospital",
+    "initials": "SO",
+    "rating": 4.8,
+    "reviewCount": 64,
+    "active": true,
+    "sortOrder": 70,
+    "hospitalId": "afyacare-hospital"
+  },
+  "faith-achieng": {
+    "name": "Dr. Faith Achieng",
+    "specialty": "Dentist",
+    "hospital": "Wellness Centre",
+    "initials": "FA",
+    "rating": 4.7,
+    "reviewCount": 51,
+    "active": true,
+    "sortOrder": 80,
+    "hospitalId": "afyacare-hospital"
+  },
+  "amina-bello": {
+    "name": "Dr. Amina Bello",
+    "specialty": "Paediatrician",
+    "hospital": "AfyaCare Hospital",
+    "initials": "AB",
+    "rating": 4.9,
+    "reviewCount": 77,
+    "active": true,
+    "sortOrder": 90,
+    "hospitalId": "afyacare-hospital"
+  },
+  "joseph-kamau": {
+    "name": "Dr. Joseph Kamau",
+    "specialty": "Paediatrician",
+    "hospital": "City Hospital",
+    "initials": "JK",
+    "rating": 4.7,
+    "reviewCount": 45,
+    "active": true,
+    "sortOrder": 100,
+    "hospitalId": "afyacare-hospital"
+  },
+  "lucy-mutua": {
+    "name": "Dr. Lucy Mutua",
+    "specialty": "Dermatologist",
+    "hospital": "Wellness Centre",
+    "initials": "LM",
+    "rating": 4.8,
+    "reviewCount": 59,
+    "active": true,
+    "sortOrder": 110,
+    "hospitalId": "afyacare-hospital"
+  },
+  "brian-kiprop": {
+    "name": "Dr. Brian Kiprop",
+    "specialty": "Consultant Dermatologist",
+    "hospital": "AfyaCare Hospital",
+    "initials": "BK",
+    "rating": 4.6,
+    "reviewCount": 38,
+    "active": true,
+    "sortOrder": 120,
+    "hospitalId": "afyacare-hospital"
+  },
+  "ruth-njoki": {
+    "name": "Dr. Ruth Njoki",
+    "specialty": "Pathologist",
+    "hospital": "AfyaCare Laboratory",
+    "initials": "RN",
+    "rating": 4.8,
+    "reviewCount": 66,
+    "active": true,
+    "sortOrder": 130,
+    "hospitalId": "afyacare-hospital"
+  }
+}

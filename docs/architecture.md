@@ -9,9 +9,10 @@ src/
   app/                  Expo Router routes ONLY (every file is a route)
     _layout.tsx         Providers + root Stack
     (auth)/             /login, /register        (Stack)
-    (patient)/          /, /appointments, /queue, /profile   (NativeTabs)
+    (patient)/          /, /appointments, /queue, /profile   (Tabs + CradleTabBar, Contact centred)
     staff/              /staff, /staff/queue, /staff/patients,
-                        /staff/services, /staff/settings      (NativeTabs)
+                        /staff/services, /staff/settings      (Tabs + CradleTabBar, Queue centred)
+    doctor/             /doctor, /doctor/queue, /doctor/schedule, /doctor/profile (My Queue centred)
   features/<domain>/    Domain + data logic per area (created on first use)
   components/
     ui/                 AfyaQueue primitives composed from HeroUI Native
@@ -41,15 +42,14 @@ Folders are created when their first file arrives, not ahead of time.
 
 Route groups do not change the URL, so `(patient)/queue` and `(staff)/queue` would both resolve to `/queue`. Staff routes therefore live under a real `staff/` segment. See [ADR 0001](./adr/0001-staff-routes-under-url-segment.md).
 
-## Server boundary (backend not chosen)
+## Server boundary
 
-The backend, API style and auth provider are undecided. To stay decoupled:
+The backend is Firebase (Auth + Firestore) via the JS SDK ([ADR 0003](./adr/0003-firebase-js-sdk-backend.md), schema in [firebase-data-model.md](./firebase-data-model.md)). To stay decoupled:
 
-- Each feature defines a **repository interface** in its own vocabulary, for example `AppointmentRepository` with `book`, `cancel`, `listForPatient`. Interfaces use domain types, never transport or ORM types.
-- A concrete implementation (HTTP, a BaaS SDK, or an in-memory fake for development) is provided at the app root and injected via context. Screens and feature hooks depend only on the interface.
-- Nothing in `src/` may import a backend SDK except its adapter in `src/lib/` or the repository implementation.
-
-No interfaces or fakes exist yet. They are written alongside the first feature that needs data, so they are shaped by a real use case.
+- Each feature defines an interface in its own vocabulary (`AuthService`, `ServiceRepository`, later `AppointmentRepository`, …) using domain types only.
+- Firebase implementations live next to the interface (`features/<domain>/firebase-*.ts`, `firestore-*.ts`); SDK setup lives in `src/lib/firebase/`.
+- `src/lib/backend.ts` picks Firebase or the in-memory mocks (when `EXPO_PUBLIC_FIREBASE_*` is not set). Screens use feature hooks and the session, never Firebase.
+- Migrated: auth, user profiles, services, doctors (+ doctorServices), appointments, check-in, queue entries and staff queue operations (Call Next / Start Service / Complete). Multi-hospital: every record carries `hospitalId`. One account can use several contexts: Patient mode (any hospital, switchable) and a workspace per active membership (staff/admin → `/staff`, doctor → `/doctor`). The workspace picker and hospital picker live in `src/components/shared/context-pickers.tsx`; state is in `src/features/hospitals/hospital-context.tsx`. Booking and check-in integrity is enforced by Firestore rules (slot locks, queue counters) because the project is on Spark ([ADR 0004](./adr/0004-rules-enforced-booking-on-spark.md)).
 
 ## Mobile conventions
 

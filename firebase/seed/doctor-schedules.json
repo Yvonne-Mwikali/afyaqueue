@@ -1,0 +1,674 @@
+{
+  "njeri-mwangi_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "njeri-mwangi",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "njeri-mwangi_1_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "njeri-mwangi",
+    "dayOfWeek": 1,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "njeri-mwangi_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "njeri-mwangi",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "njeri-mwangi_3_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "njeri-mwangi",
+    "dayOfWeek": 3,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "njeri-mwangi_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "njeri-mwangi",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "njeri-mwangi_5_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "njeri-mwangi",
+    "dayOfWeek": 5,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "daniel-okello_2_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "daniel-okello",
+    "dayOfWeek": 2,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "daniel-okello_2_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "daniel-okello",
+    "dayOfWeek": 2,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "daniel-okello_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "daniel-okello",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "daniel-okello_4_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "daniel-okello",
+    "dayOfWeek": 4,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "daniel-okello_6_0900": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "daniel-okello",
+    "dayOfWeek": 6,
+    "startTime": "09:00",
+    "endTime": "13:00",
+    "active": true
+  },
+  "amina-hassan_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-hassan",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-hassan_2_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-hassan",
+    "dayOfWeek": 2,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-hassan_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-hassan",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-hassan_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-hassan",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "kofi-mensah_1_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "kofi-mensah",
+    "dayOfWeek": 1,
+    "startTime": "13:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "kofi-mensah_2_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "kofi-mensah",
+    "dayOfWeek": 2,
+    "startTime": "13:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "kofi-mensah_3_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "kofi-mensah",
+    "dayOfWeek": 3,
+    "startTime": "13:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "kofi-mensah_4_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "kofi-mensah",
+    "dayOfWeek": 4,
+    "startTime": "13:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "kofi-mensah_5_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "kofi-mensah",
+    "dayOfWeek": 5,
+    "startTime": "13:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "grace-wanjiru_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "grace-wanjiru_1_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 1,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "grace-wanjiru_2_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 2,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "grace-wanjiru_2_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 2,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "grace-wanjiru_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "grace-wanjiru_3_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 3,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "grace-wanjiru_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "grace-wanjiru_4_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 4,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "grace-wanjiru_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "grace-wanjiru_5_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "grace-wanjiru",
+    "dayOfWeek": 5,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "peter-otieno_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "peter-otieno",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "peter-otieno_2_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "peter-otieno",
+    "dayOfWeek": 2,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "peter-otieno_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "peter-otieno",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "peter-otieno_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "peter-otieno",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "peter-otieno_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "peter-otieno",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "peter-otieno_6_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "peter-otieno",
+    "dayOfWeek": 6,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "samuel-okoye_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "samuel-okoye_1_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 1,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "samuel-okoye_2_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 2,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "samuel-okoye_2_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 2,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "samuel-okoye_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "samuel-okoye_3_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 3,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "samuel-okoye_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "samuel-okoye_4_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 4,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "samuel-okoye_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "samuel-okoye_5_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "samuel-okoye",
+    "dayOfWeek": 5,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "faith-achieng_2_1000": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "faith-achieng",
+    "dayOfWeek": 2,
+    "startTime": "10:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "faith-achieng_3_1000": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "faith-achieng",
+    "dayOfWeek": 3,
+    "startTime": "10:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "faith-achieng_4_1000": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "faith-achieng",
+    "dayOfWeek": 4,
+    "startTime": "10:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "faith-achieng_5_1000": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "faith-achieng",
+    "dayOfWeek": 5,
+    "startTime": "10:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "faith-achieng_6_1000": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "faith-achieng",
+    "dayOfWeek": 6,
+    "startTime": "10:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "amina-bello_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-bello_1_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 1,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "amina-bello_2_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 2,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-bello_2_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 2,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "amina-bello_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-bello_3_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 3,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "amina-bello_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-bello_4_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 4,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "amina-bello_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "amina-bello_5_1300": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "amina-bello",
+    "dayOfWeek": 5,
+    "startTime": "13:00",
+    "endTime": "16:00",
+    "active": true
+  },
+  "joseph-kamau_1_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "joseph-kamau",
+    "dayOfWeek": 1,
+    "startTime": "08:00",
+    "endTime": "13:00",
+    "active": true
+  },
+  "joseph-kamau_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "joseph-kamau",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "13:00",
+    "active": true
+  },
+  "joseph-kamau_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "joseph-kamau",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "13:00",
+    "active": true
+  },
+  "lucy-mutua_1_0900": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "lucy-mutua",
+    "dayOfWeek": 1,
+    "startTime": "09:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "lucy-mutua_1_1400": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "lucy-mutua",
+    "dayOfWeek": 1,
+    "startTime": "14:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "lucy-mutua_2_0900": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "lucy-mutua",
+    "dayOfWeek": 2,
+    "startTime": "09:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "lucy-mutua_2_1400": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "lucy-mutua",
+    "dayOfWeek": 2,
+    "startTime": "14:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "lucy-mutua_4_0900": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "lucy-mutua",
+    "dayOfWeek": 4,
+    "startTime": "09:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "lucy-mutua_4_1400": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "lucy-mutua",
+    "dayOfWeek": 4,
+    "startTime": "14:00",
+    "endTime": "17:00",
+    "active": true
+  },
+  "brian-kiprop_3_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "brian-kiprop",
+    "dayOfWeek": 3,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "brian-kiprop_4_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "brian-kiprop",
+    "dayOfWeek": 4,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "brian-kiprop_5_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "brian-kiprop",
+    "dayOfWeek": 5,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "brian-kiprop_6_0800": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "brian-kiprop",
+    "dayOfWeek": 6,
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "active": true
+  },
+  "ruth-njoki_1_0730": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 1,
+    "startTime": "07:30",
+    "endTime": "12:30",
+    "active": true
+  },
+  "ruth-njoki_1_1330": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 1,
+    "startTime": "13:30",
+    "endTime": "16:30",
+    "active": true
+  },
+  "ruth-njoki_2_0730": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 2,
+    "startTime": "07:30",
+    "endTime": "12:30",
+    "active": true
+  },
+  "ruth-njoki_2_1330": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 2,
+    "startTime": "13:30",
+    "endTime": "16:30",
+    "active": true
+  },
+  "ruth-njoki_3_0730": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 3,
+    "startTime": "07:30",
+    "endTime": "12:30",
+    "active": true
+  },
+  "ruth-njoki_3_1330": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 3,
+    "startTime": "13:30",
+    "endTime": "16:30",
+    "active": true
+  },
+  "ruth-njoki_4_0730": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 4,
+    "startTime": "07:30",
+    "endTime": "12:30",
+    "active": true
+  },
+  "ruth-njoki_4_1330": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 4,
+    "startTime": "13:30",
+    "endTime": "16:30",
+    "active": true
+  },
+  "ruth-njoki_5_0730": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 5,
+    "startTime": "07:30",
+    "endTime": "12:30",
+    "active": true
+  },
+  "ruth-njoki_5_1330": {
+    "hospitalId": "afyacare-hospital",
+    "doctorId": "ruth-njoki",
+    "dayOfWeek": 5,
+    "startTime": "13:30",
+    "endTime": "16:30",
+    "active": true
+  }
+}

@@ -1,0 +1,844 @@
+rules_version = '2';
+
+// AfyaQueue Firestore rules. Schema: docs/firebase-data-model.md.
+//
+// - Nothing is readable or writable without signing in.
+// - Multi-hospital: every operational record carries hospitalId, and access
+//   is decided per hospital:
+//   - members (hospitalMembers/{hospitalId}_{uid}: staff, doctor, admin)
+//     work only inside hospitals where they have an active membership;
+//   - patients join a hospital (hospitalPatients/{hospitalId}_{uid}) and
+//     read its catalog/queues and book only there.
+// - Patients read only their own profile, appointments and queue entries,
+//   book for themselves ("booked"), and cancel only while booked.
+// - Doctors read only appointments and queue entries assigned to them,
+//   their hospital's schedules, and add/remove their own future absences.
+// - Booking and check-in are enforced here, without Cloud Functions (the
+//   project is on the Spark plan): slot locks prevent double-booking, and
+//   a per-queue counter issues queue numbers (see the sections below).
+// - Queue order and status are never writable by patients. Staff (and
+//   admins) move entries one step at a time: waiting → called →
+//   in-service → completed; "Call Next" also moves nowServing.
+// - Memberships, schedules, services and doctors are written by admins or
+//   the local Admin SDK scripts, never by patients.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function ownsResource() {
+      return signedIn() && resource.data.patientId == request.auth.uid;
+    }
+
+    // ---- Hospital membership -------------------------------------------
+    function memberPath(hospitalId) {
+      return /databases/$(database)/documents/hospitalMembers/$(hospitalId + '_' + request.auth.uid);
+    }
+
+    function hasMembership(hospitalId, roles) {
+      return signedIn()
+        && hospitalId is string
+        && exists(memberPath(hospitalId))
+        && get(memberPath(hospitalId)).data.active == true
+        && get(memberPath(hospitalId)).data.role in roles;
+    }
+
+    function isMemberAt(hospitalId) {
+      return hasMembership(hospitalId, ['staff', 'doctor', 'admin']);
+    }
+
+    function isStaffAt(hospitalId) {
+      return hasMembership(hospitalId, ['staff', 'admin']);
+    }
+
+    function isAdminAt(hospitalId) {
+      return hasMembership(hospitalId, ['admin']);
+    }
+
+    // A doctor account operates exactly one doctor record per hospital.
+    function isDoctorFor(hospitalId, doctorId) {
+      return hasMembership(hospitalId, ['doctor'])
+        && doctorId is string
+        && get(memberPath(hospitalId)).data.doctorId == doctorId;
+    }
+
+    // Who may operate a queue entry (or its appointment): the hospital's
+    // staff/admins, or the doctor it is assigned to. Entries with no doctor
+    // ("Any available doctor") are staff-only.
+    function canOperate(data) {
+      return isStaffAt(data.hospitalId) || isDoctorFor(data.hospitalId, data.doctorId);
+    }
+
+    function isHospitalPatient(hospitalId) {
+      return signedIn()
+        && hospitalId is string
+        && exists(/databases/$(database)/documents/hospitalPatients/$(hospitalId + '_' + request.auth.uid));
+    }
+
+    function canSeeHospital(hospitalId) {
+      return isMemberAt(hospitalId) || isHospitalPatient(hospitalId);
+    }
+
+    // Admin writes stay inside the admin's hospital and can't move a record.
+    function isAdminWrite() {
+      return (request.resource == null
+          ? isAdminAt(resource.data.hospitalId)
+          : isAdminAt(request.resource.data.hospitalId))
+        && (resource == null || request.resource == null
+          || request.resource.data.hospitalId == resource.data.hospitalId);
+    }
+
+    // Profiles: only the user themselves. Staff never read patient profiles;
+    // the display name they need is copied onto appointments and queue
+    // entries (patientName). Role cannot be chosen or changed by the patient.
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid)
+        && request.resource.data.role == 'patient'
+        && request.resource.data.keys().hasOnly(
+          ['fullName', 'phone', 'email', 'role', 'createdAt', 'updatedAt'])
+        && request.resource.data.fullName is string
+        && request.resource.data.email is string;
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['fullName', 'phone', 'language', 'notificationsEnabled', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // ---- Hospitals ---------------------------------------------------------
+    // Admins edit their own hospital's details. The id never changes, and
+    // `active` isn't editable from the app (deactivating would lock out patients).
+    match /hospitals/{hospitalId} {
+      allow read: if signedIn() && (resource.data.active == true || isMemberAt(hospitalId));
+      allow update: if isAdminAt(hospitalId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'shortName', 'location', 'timeZone', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.updatedAt == request.time;
+      allow create, delete: if false;
+    }
+
+    // Created by the Admin SDK script (scripts/set-membership.mjs: resolving
+    // a user by email needs trusted code). Hospital admins can change role
+    // (staff ↔ admin), (de)activate, and link/unlink a doctor record, but
+    // never their own membership, so an admin can't lock themselves out.
+    function isAdminMemberUpdate() {
+      let after = request.resource.data;
+      let doctor = /databases/$(database)/documents/doctors/$(after.get('doctorId', ''));
+      return isAdminAt(resource.data.hospitalId)
+        && resource.data.userId != request.auth.uid
+        && after.diff(resource.data).affectedKeys()
+          .hasOnly(['role', 'active', 'doctorId', 'updatedAt', 'updatedBy'])
+        && after.active is bool
+        && after.updatedAt == request.time
+        && after.updatedBy == request.auth.uid
+        && ((after.role in ['staff', 'admin'] && after.doctorId == null)
+          || (after.role == 'doctor'
+            && after.doctorId is string
+            && getAfter(doctor).data.hospitalId == resource.data.hospitalId
+            && getAfter(doctor).data.userId == resource.data.userId));
+    }
+
+    // ---- Invitations --------------------------------------------------------
+    // hospitalInvites/{hospitalId}_{email}: created by that hospital's admins
+    // only. The recipient claims it by signing in with the same, *verified*
+    // email (Firebase sends the verification link), so nobody can register an
+    // invited address first and take the role. Role, hospital and doctor come
+    // from the invite; the recipient can't choose or change them.
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function invitePath(hospitalId) {
+      return /databases/$(database)/documents/hospitalInvites/$(hospitalId + '_' + myEmail());
+    }
+
+    function canClaimInvites() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    function inviteFields() {
+      return ['hospitalId', 'email', 'role', 'doctorId', 'doctorName', 'status', 'createdBy',
+        'createdAt', 'updatedAt', 'acceptedAt', 'acceptedBy'];
+    }
+
+    // An admin's invite: own hospital, normalised email, valid role; a doctor
+    // invite names an unlinked doctor record of the same hospital.
+    function isValidInvite(inviteId, data) {
+      let doctor = /databases/$(database)/documents/doctors/$(data.get('doctorId', ''));
+      return data.keys().hasOnly(inviteFields())
+        && isAdminAt(data.hospitalId)
+        && data.email is string
+        && data.email == data.email.lower()
+        && data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && inviteId == data.hospitalId + '_' + data.email
+        && data.status in ['pending', 'revoked']
+        && data.updatedAt == request.time
+        && (data.role in ['staff', 'admin'] && data.doctorId == null
+          || (data.role == 'doctor'
+            && data.doctorId is string
+            && getAfter(doctor).data.hospitalId == data.hospitalId
+            && getAfter(doctor).data.get('userId', null) == null));
+    }
+
+    match /hospitalInvites/{inviteId} {
+      // Recipients can see their invite before verifying (to be told to
+      // verify); claiming it requires the verified email.
+      allow read: if isAdminAt(resource.data.hospitalId)
+        || (signedIn() && request.auth.token.email is string
+          && resource.data.email == myEmail());
+      allow create: if signedIn()
+        && isValidInvite(inviteId, request.resource.data)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      // Admin: revoke, or re-issue (role/doctor may change) until accepted.
+      // Recipient: pending → accepted, together with their membership.
+      allow update: if signedIn() && resource.data.status != 'accepted' && (
+        (isAdminAt(resource.data.hospitalId)
+          && isValidInvite(inviteId, request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['role', 'doctorId', 'doctorName', 'status', 'updatedAt'])
+          && request.resource.data.hospitalId == resource.data.hospitalId
+          && request.resource.data.email == resource.data.email)
+        || (canClaimInvites()
+          && resource.data.email == myEmail()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'acceptedAt', 'acceptedBy', 'updatedAt'])
+          && request.resource.data.acceptedAt == request.time
+          && request.resource.data.acceptedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && existsAfter(memberPath(resource.data.hospitalId))));
+      allow delete: if false;
+    }
+
+    // The membership a claimed invite describes, and nothing more.
+    function isInviteClaim(memberId) {
+      let m = request.resource.data;
+      let invite = get(invitePath(m.hospitalId)).data;
+      let doctor = /databases/$(database)/documents/doctors/$(m.get('doctorId', ''));
+      return canClaimInvites()
+        && memberId == m.hospitalId + '_' + request.auth.uid
+        && m.keys().hasOnly(['hospitalId', 'userId', 'role', 'doctorId', 'active', 'displayName',
+          'email', 'createdAt', 'updatedAt'])
+        && m.userId == request.auth.uid
+        && m.email == myEmail()
+        && m.displayName is string
+        && m.active == true
+        && m.createdAt == request.time
+        && m.updatedAt == request.time
+        && invite.status == 'pending'
+        && getAfter(invitePath(m.hospitalId)).data.status == 'accepted'
+        && m.role == invite.role
+        && m.doctorId == invite.doctorId
+        && (m.role != 'doctor' || getAfter(doctor).data.userId == request.auth.uid);
+    }
+
+    match /hospitalMembers/{memberId} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdminAt(resource.data.hospitalId));
+      allow create: if signedIn() && isInviteClaim(memberId);
+      allow update: if signedIn() && isAdminMemberUpdate();
+      allow delete: if false;
+    }
+
+    // A patient joins an active hospital themselves (one doc, never changed).
+    match /hospitalPatients/{linkId} {
+      allow read: if signedIn()
+        && (resource == null ? linkId.matches('.*_' + request.auth.uid)
+          : resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['hospitalId', 'userId', 'createdAt'])
+        && request.resource.data.userId == request.auth.uid
+        && linkId == request.resource.data.hospitalId + '_' + request.auth.uid
+        && get(/databases/$(database)/documents/hospitals/$(request.resource.data.hospitalId))
+          .data.active == true
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // ---- Catalog (per hospital) -------------------------------------------
+    // Patients see active records of hospitals they've joined; members see
+    // all of their hospital's. Queries must filter on hospitalId (and
+    // active for patients). Only that hospital's admins write.
+    // Never deleted (appointments refer to them): deactivate instead.
+    // Durations stay within what slot locks cover (rules: up to 3 blocks).
+    function isValidService(data) {
+      return data.name is string && data.name.size() > 0
+        && data.active is bool
+        && data.durationMinutes is int
+        && data.durationMinutes >= 5 && data.durationMinutes <= 45
+        && data.modes is list && data.modes.size() > 0
+        && data.modes.hasOnly(['in-clinic', 'online'])
+        && data.category in ['primary', 'specialty', 'diagnostic'];
+    }
+
+    match /services/{serviceId} {
+      allow read: if canSeeHospital(resource.data.hospitalId)
+        && (resource.data.active == true || isMemberAt(resource.data.hospitalId));
+      allow create, update: if isAdminWrite() && isValidService(request.resource.data);
+      allow delete: if false;
+    }
+
+    // A doctor's login link must match that account's doctor membership.
+    function isValidDoctor(doctorId, data) {
+      return data.name is string && data.name.size() > 0
+        && data.active is bool
+        && (data.get('userId', null) == null
+          || getAfter(/databases/$(database)/documents/hospitalMembers/$(data.hospitalId + '_' + data.userId))
+            .data.doctorId == doctorId);
+    }
+
+    // An invited doctor links *the* record named by their invite to themselves.
+    function isDoctorClaim(doctorId) {
+      let invite = get(invitePath(resource.data.hospitalId)).data;
+      return canClaimInvites()
+        && resource.data.get('userId', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId', 'updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && invite.status == 'pending'
+        && invite.role == 'doctor'
+        && invite.doctorId == doctorId
+        && getAfter(invitePath(resource.data.hospitalId)).data.status == 'accepted';
+    }
+
+    match /doctors/{doctorId} {
+      allow read: if canSeeHospital(resource.data.hospitalId)
+        && (resource.data.active == true || isMemberAt(resource.data.hospitalId));
+      allow create, update: if isAdminWrite() && isValidDoctor(doctorId, request.resource.data);
+      allow update: if signedIn() && isDoctorClaim(doctorId);
+      allow delete: if false;
+    }
+
+    // Link IDs are "{doctorId}_{serviceId}"; both ends must be in the
+    // link's hospital. Removing a link = active false.
+    function isValidLink(linkId, data) {
+      return linkId == data.doctorId + '_' + data.serviceId
+        && data.active is bool
+        && getAfter(/databases/$(database)/documents/doctors/$(data.doctorId)).data.hospitalId
+          == data.hospitalId
+        && getAfter(/databases/$(database)/documents/services/$(data.serviceId)).data.hospitalId
+          == data.hospitalId;
+    }
+
+    match /doctorServices/{linkId} {
+      allow read: if canSeeHospital(resource.data.hospitalId)
+        && (resource.data.active == true || isMemberAt(resource.data.hospitalId));
+      allow create, update: if isAdminWrite() && isValidLink(linkId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---- Doctor availability ----------------------------------------------
+    // Weekly windows: readable for booking, set by the hospital (admins).
+    function isValidWindow(data) {
+      let time = '^([01][0-9]|2[0-3]):[0-5][0-9]$';
+      return data.dayOfWeek is int && data.dayOfWeek >= 0 && data.dayOfWeek <= 6
+        && data.startTime is string && data.startTime.matches(time)
+        && data.endTime is string && data.endTime.matches(time)
+        && data.endTime > data.startTime
+        && data.active is bool
+        && getAfter(/databases/$(database)/documents/doctors/$(data.doctorId)).data.hospitalId
+          == data.hospitalId;
+    }
+
+    match /doctorSchedules/{scheduleId} {
+      allow read: if canSeeHospital(resource.data.hospitalId);
+      allow create, update: if isAdminWrite() && isValidWindow(request.resource.data);
+      allow delete: if isAdminAt(resource.data.hospitalId);
+    }
+
+    // Absences hold no free-text reason: the hospital's patients read them so
+    // booking hides those days. Doctors add/remove their own future ones;
+    // admins manage any in their hospital.
+    function absenceFields() {
+      return ['hospitalId', 'doctorId', 'startAt', 'endAt', 'kind', 'createdBy', 'createdAt'];
+    }
+
+    function isValidAbsence(data) {
+      return data.keys().hasAll(absenceFields())
+        && data.keys().hasOnly(absenceFields())
+        && data.startAt is timestamp
+        && data.endAt is timestamp
+        && data.startAt > request.time
+        && data.endAt > data.startAt
+        && data.kind in ['leave', 'unavailable', 'temporary']
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time
+        && exists(/databases/$(database)/documents/doctors/$(data.doctorId))
+        && get(/databases/$(database)/documents/doctors/$(data.doctorId)).data.hospitalId
+          == data.hospitalId;
+    }
+
+    match /doctorAbsences/{absenceId} {
+      allow read: if canSeeHospital(resource.data.hospitalId);
+      allow create: if isValidAbsence(request.resource.data)
+        && (isDoctorFor(request.resource.data.hospitalId, request.resource.data.doctorId)
+          || isAdminAt(request.resource.data.hospitalId));
+      allow delete: if (isDoctorFor(resource.data.hospitalId, resource.data.doctorId)
+          && resource.data.startAt > request.time)
+        || isAdminAt(resource.data.hospitalId);
+      allow update: if false;
+    }
+
+    // Visits are implied by appointments (visitId = "<uid>_<YYYY-MM-DD>");
+    // visit documents are written by trusted code later, never by patients.
+    match /visits/{visitId} {
+      allow read: if ownsResource() || isStaffAt(resource.data.hospitalId);
+      allow write: if false;
+    }
+
+    // Appointments. A patient books for themselves only, always as
+    // "booked", for an active service, in the future. The only change a
+    // patient can make afterwards is cancelling while still booked
+    // (rule 14). Every other status is staff/system-only (rule 15).
+    // No queue entry is created at booking (rule 9).
+    // Not enforceable here (needs trusted code): doctor double-booking and
+    // patient overlaps (rules 7–8), slot availability.
+    function appointmentFields() {
+      return ['hospitalId', 'patientId', 'patientName', 'visitId', 'serviceId', 'doctorId',
+        'scheduledAt', 'date', 'durationMinutes', 'visitType', 'status', 'createdAt', 'updatedAt'];
+    }
+
+    function bookedService(data) {
+      return get(/databases/$(database)/documents/services/$(data.serviceId)).data;
+    }
+
+    // A specific doctor must be active, in the same hospital, and linked
+    // (actively) to the service.
+    function isBookableDoctor(hospitalId, doctorId, serviceId) {
+      let doctor = /databases/$(database)/documents/doctors/$(doctorId);
+      let link = /databases/$(database)/documents/doctorServices/$(doctorId + '_' + serviceId);
+      return doctorId is string
+        && exists(doctor)
+        && get(doctor).data.active == true
+        && get(doctor).data.hospitalId == hospitalId
+        && exists(link)
+        && get(link).data.active == true
+        && get(link).data.hospitalId == hospitalId;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(appointmentFields())
+        && data.keys().hasOnly(appointmentFields())
+        && data.patientId == request.auth.uid
+        // Only at a hospital the patient has joined, for that hospital's service.
+        && isHospitalPatient(data.hospitalId)
+        // Display name for staff: must be the patient's own profile name.
+        && data.patientName == get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('fullName', '')
+        && data.status == 'booked'
+        && data.serviceId is string
+        && exists(/databases/$(database)/documents/services/$(data.serviceId))
+        && bookedService(data).active == true
+        && bookedService(data).hospitalId == data.hospitalId
+        && data.durationMinutes == bookedService(data).durationMinutes
+        && data.visitType in bookedService(data).modes
+        && (data.doctorId == null
+          || isBookableDoctor(data.hospitalId, data.doctorId, data.serviceId))
+        && data.scheduledAt is timestamp
+        && data.scheduledAt > request.time
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.visitId == request.auth.uid + '_' + data.date
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    // ---- Slot locks (src/features/appointments/slot-locks.ts) ----------
+    // A booking writes its appointment plus locks in one batch. Locks can
+    // only be created (never overwritten), so a taken slot fails the whole
+    // booking, even under concurrency. Locks hold no patient details.
+    function blockMs() {
+      return 900000; // 15 minutes, SLOT_BLOCK_MINUTES
+    }
+
+    function blockCount(minutes) {
+      return math.ceil(minutes / 15);
+    }
+
+    function appointmentPath(appointmentId) {
+      return /databases/$(database)/documents/appointments/$(appointmentId);
+    }
+
+    function doctorLockPath(doctorId, ms) {
+      return /databases/$(database)/documents/doctorSlots/$(doctorId + '_' + string(ms));
+    }
+
+    function patientLockPath(patientId, ms) {
+      return /databases/$(database)/documents/patientSlots/$(patientId + '_' + string(ms));
+    }
+
+    function doctorLockHeld(doctorId, ms, appointmentId) {
+      return getAfter(doctorLockPath(doctorId, ms)).data.appointmentId == appointmentId;
+    }
+
+    // Every lock the new appointment needs exists after this batch and
+    // points back at it. Durations up to 45 minutes (3 blocks).
+    function hasBookingLocks(appointmentId, data) {
+      let start = data.scheduledAt.toMillis();
+      let blocks = blockCount(data.durationMinutes);
+      return blocks <= 3
+        && getAfter(patientLockPath(data.patientId, start)).data.appointmentId == appointmentId
+        && (data.doctorId == null || (
+          doctorLockHeld(data.doctorId, start, appointmentId)
+          && (blocks < 2 || doctorLockHeld(data.doctorId, start + blockMs(), appointmentId))
+          && (blocks < 3 || doctorLockHeld(data.doctorId, start + 2 * blockMs(), appointmentId))
+        ));
+    }
+
+    // Cancelling must release the appointment's locks in the same batch.
+    function locksReleased(data) {
+      let start = data.scheduledAt.toMillis();
+      let blocks = blockCount(data.durationMinutes);
+      return !existsAfter(patientLockPath(data.patientId, start))
+        && (data.doctorId == null || (
+          !existsAfter(doctorLockPath(data.doctorId, start))
+          && (blocks < 2 || !existsAfter(doctorLockPath(data.doctorId, start + blockMs())))
+          && (blocks < 3 || !existsAfter(doctorLockPath(data.doctorId, start + 2 * blockMs())))
+        ));
+    }
+
+    function isPatientCancellation() {
+      return resource.data.patientId == request.auth.uid
+        && resource.data.status == 'booked'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'cancelledAt', 'updatedAt'])
+        && request.resource.data.cancelledAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && locksReleased(resource.data);
+    }
+
+    // Check-in: booked → checked-in, together with its queue entry. Server
+    // time decides scheduled priority (rules 10–11). Allowed within 24h
+    // of the appointment (the app limits it to the same day).
+    function isPatientCheckIn(appointmentId) {
+      return resource.data.patientId == request.auth.uid
+        && resource.data.status == 'booked'
+        && request.resource.data.status == 'checked-in'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'checkedInAt', 'scheduledPriority', 'updatedAt'])
+        && request.resource.data.checkedInAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.scheduledPriority == (request.time <= resource.data.scheduledAt)
+        && request.time > resource.data.scheduledAt - duration.value(24, 'h')
+        && request.time < resource.data.scheduledAt + duration.value(24, 'h')
+        && existsAfter(/databases/$(database)/documents/queueEntries/$(appointmentId));
+    }
+
+    // Staff (or the assigned doctor) close an appointment only together with
+    // its queue entry: completed, or no-show after the patient was called.
+    function isOperatorClose(appointmentId) {
+      let entry = getAfter(/databases/$(database)/documents/queueEntries/$(appointmentId)).data;
+      let to = request.resource.data.status;
+      return canOperate(resource.data)
+        && resource.data.status in ['checked-in', 'waiting', 'delayed']
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'completedAt', 'noShowAt', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && ((to == 'completed' && request.resource.data.completedAt == request.time
+            && entry.status == 'completed')
+          || (to == 'no-show' && request.resource.data.noShowAt == request.time
+            && entry.status == 'no-show'));
+    }
+
+    // Patients read their own; staff their hospital's; doctors only theirs.
+    match /appointments/{appointmentId} {
+      allow read: if ownsResource()
+        || isStaffAt(resource.data.hospitalId)
+        || isDoctorFor(resource.data.hospitalId, resource.data.doctorId);
+      allow create: if signedIn()
+        && isValidBooking(request.resource.data)
+        && request.resource.data.scheduledAt.toMillis() % blockMs() == 0
+        && hasBookingLocks(appointmentId, request.resource.data);
+      allow update: if signedIn()
+        && (isPatientCancellation() || isPatientCheckIn(appointmentId) || isOperatorClose(appointmentId));
+      allow delete: if false;
+    }
+
+    function isLockFor(lockId, data, ownerField) {
+      let appointment = getAfter(appointmentPath(data.appointmentId)).data;
+      let start = appointment.scheduledAt.toMillis();
+      let offset = data.startAt.toMillis() - start;
+      return data.keys().hasAll(['hospitalId', ownerField, 'startAt', 'appointmentId'])
+        && data.keys().hasOnly(['hospitalId', ownerField, 'startAt', 'appointmentId'])
+        && data.hospitalId == appointment.hospitalId
+        && data.startAt is timestamp
+        && lockId == data[ownerField] + '_' + string(data.startAt.toMillis())
+        // Only alongside a brand-new booking by this patient.
+        && !exists(appointmentPath(data.appointmentId))
+        && appointment.patientId == request.auth.uid
+        && appointment.status == 'booked'
+        && offset >= 0
+        && offset % blockMs() == 0
+        && offset < blockCount(appointment.durationMinutes) * blockMs();
+    }
+
+    function releasesLock() {
+      return resource == null || (
+        getAfter(appointmentPath(resource.data.appointmentId)).data.patientId == request.auth.uid
+        && getAfter(appointmentPath(resource.data.appointmentId)).data.status == 'cancelled');
+    }
+
+    // Busy times only (doctor, time, appointment id): safe to show as taken,
+    // to people using the same hospital.
+    match /doctorSlots/{lockId} {
+      allow read: if canSeeHospital(resource.data.hospitalId);
+      allow create: if signedIn()
+        && isLockFor(lockId, request.resource.data, 'doctorId')
+        && getAfter(appointmentPath(request.resource.data.appointmentId)).data.doctorId
+          == request.resource.data.doctorId;
+      allow update: if false;
+      allow delete: if signedIn() && releasesLock();
+    }
+
+    match /patientSlots/{lockId} {
+      allow read: if signedIn() && resource.data.patientId == request.auth.uid;
+      allow create: if signedIn()
+        && isLockFor(lockId, request.resource.data, 'patientId')
+        && request.resource.data.patientId == request.auth.uid
+        && request.resource.data.startAt
+          == getAfter(appointmentPath(request.resource.data.appointmentId)).data.scheduledAt;
+      allow update: if false;
+      allow delete: if signedIn() && releasesLock();
+    }
+
+    // ---- Live queue -----------------------------------------------------
+    // One queue per service per day: queues/{serviceId}_{YYYY-MM-DD}.
+    // `lastNumber` issues queue numbers: a check-in may only raise it by
+    // exactly one, and only with the entry that takes that number. Patients
+    // never set nowServing, order or operational statuses (rules 15–16).
+    function entryPath(entryId) {
+      return /databases/$(database)/documents/queueEntries/$(entryId);
+    }
+
+    function queueFields() {
+      return ['hospitalId', 'serviceId', 'date', 'lastNumber', 'lastEntryId', 'nowServing', 'status',
+        'estimatedServiceMinutes', 'createdAt', 'updatedAt'];
+    }
+
+    function isNewQueue(queueId) {
+      let q = request.resource.data;
+      let entry = getAfter(entryPath(q.lastEntryId)).data;
+      return q.keys().hasAll(queueFields())
+        && q.keys().hasOnly(queueFields())
+        && queueId == q.serviceId + '_' + q.date
+        && q.lastNumber == 1
+        && q.nowServing == 0
+        && q.status == 'open'
+        && q.estimatedServiceMinutes == get(appointmentPath(q.lastEntryId)).data.durationMinutes
+        && q.hospitalId == get(appointmentPath(q.lastEntryId)).data.hospitalId
+        && q.createdAt == request.time
+        && q.updatedAt == request.time
+        && entry.queueId == queueId
+        && entry.queueNumber == 1
+        && entry.patientId == request.auth.uid;
+    }
+
+    function isQueueIncrement(queueId) {
+      let q = request.resource.data;
+      let entry = getAfter(entryPath(q.lastEntryId)).data;
+      return q.diff(resource.data).affectedKeys().hasOnly(['lastNumber', 'lastEntryId', 'updatedAt'])
+        && q.lastNumber == resource.data.lastNumber + 1
+        && q.updatedAt == request.time
+        && entry.queueId == queueId
+        && entry.queueNumber == q.lastNumber
+        && entry.patientId == request.auth.uid;
+    }
+
+    // "Call Next" (staff, or the entry's doctor): nowServing moves to the called entry's number, in
+    // the same transaction that marks a waiting entry called. callVersion
+    // goes up by exactly one per call, so stale or blind writes fail.
+    function isStaffCall(queueId) {
+      let q = request.resource.data;
+      let before = get(entryPath(q.currentEntryId)).data;
+      let after = getAfter(entryPath(q.currentEntryId)).data;
+      return (isStaffAt(resource.data.hospitalId)
+          || isDoctorFor(resource.data.hospitalId, before.doctorId))
+        && q.diff(resource.data).affectedKeys()
+          .hasOnly(['nowServing', 'currentEntryId', 'callVersion', 'updatedAt', 'updatedBy'])
+        && q.callVersion == resource.data.get('callVersion', 0) + 1
+        && q.updatedAt == request.time
+        && q.updatedBy == request.auth.uid
+        && before.queueId == queueId
+        && before.status == 'waiting'
+        && after.status == 'called'
+        && q.nowServing == before.queueNumber;
+    }
+
+    // Only people using this hospital (members or its joined patients).
+    // A queue that doesn't exist yet can be "read" (check-in creates it).
+    match /queues/{queueId} {
+      allow read: if signedIn() && (resource == null || canSeeHospital(resource.data.hospitalId));
+      allow create: if signedIn() && isNewQueue(queueId);
+      allow update: if signedIn() && (isQueueIncrement(queueId) || isStaffCall(queueId));
+      allow delete: if false;
+    }
+
+    function entryFields() {
+      return ['queueId', 'appointmentId', 'visitId', 'patientId', 'patientName', 'queueNumber',
+        'status', 'scheduledPriority', 'checkedInAt', 'hospitalId', 'doctorId'];
+    }
+
+    // Entry id = appointment id, so an appointment can only ever have one.
+    function isCheckInEntry(entryId) {
+      let e = request.resource.data;
+      let before = get(appointmentPath(entryId)).data;
+      let after = getAfter(appointmentPath(entryId)).data;
+      let queue = /databases/$(database)/documents/queues/$(e.queueId);
+      return e.keys().hasAll(entryFields())
+        && e.keys().hasOnly(entryFields())
+        && e.appointmentId == entryId
+        && e.patientId == request.auth.uid
+        && before.patientId == request.auth.uid
+        && before.status == 'booked'
+        && after.status == 'checked-in'
+        && e.queueId == before.serviceId + '_' + before.date
+        && e.visitId == before.visitId
+        && e.patientName == before.get('patientName', '')
+        && e.hospitalId == before.hospitalId
+        // The appointment's doctor (null = any), so doctors see their own queue.
+        && e.doctorId == before.get('doctorId', null)
+        && e.status == 'waiting'
+        && e.scheduledPriority == after.scheduledPriority
+        && e.checkedInAt == request.time
+        && e.queueNumber is int
+        && getAfter(queue).data.lastNumber == e.queueNumber
+        && getAfter(queue).data.lastEntryId == entryId
+        && (exists(queue)
+          ? get(queue).data.lastNumber == e.queueNumber - 1
+          : e.queueNumber == 1);
+    }
+
+    // ---- Queue operations (staff, or the assigned doctor) -------------------
+    // Only these transitions, one step at a time (src/features/queues/queue-actions.ts):
+    //   waiting → called (Call / Call Next)     called → called (Call Again)
+    //   called → held → waiting (Hold, Resume)  called → in-service (Start)
+    //   in-service → called (Undo Start, within 2 minutes)
+    //   in-service → completed                  called → no-show
+    // Each writes server-time/actor stamps and exactly one audit event
+    // (queueEntries/{id}/events/{n}); queueNumber, hospitalId, patientId and
+    // doctorId never change because they're never in the allowed keys.
+    function eventPath(entryId, n) {
+      return /databases/$(database)/documents/queueEntries/$(entryId)/events/$(string(n));
+    }
+
+    function step(entryId, from, to, fields) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let n = before.get('eventCount', 0) + 1;
+      return before.status == from
+        && after.status == to
+        && after.diff(before).affectedKeys()
+          .hasOnly(fields.concat(['status', 'updatedAt', 'updatedBy', 'eventCount']))
+        && after.eventCount == n
+        && after.updatedAt == request.time
+        && after.updatedBy == request.auth.uid
+        && existsAfter(eventPath(entryId, n));
+    }
+
+    function stamped(atField, byField) {
+      return request.resource.data[atField] == request.time
+        && request.resource.data[byField] == request.auth.uid;
+    }
+
+    function isCallStep(entryId, from) {
+      return step(entryId, from, 'called', ['callCount', 'lastCalledAt', 'lastCalledBy'])
+        && request.resource.data.callCount == resource.data.get('callCount', 0) + 1
+        && stamped('lastCalledAt', 'lastCalledBy');
+    }
+
+    function isOperatorEntryUpdate(entryId) {
+      let queue = /databases/$(database)/documents/queues/$(resource.data.queueId);
+      return canOperate(resource.data) && (
+        // Call: also moves the queue to this entry (isStaffCall).
+        (isCallStep(entryId, 'waiting')
+          && getAfter(queue).data.currentEntryId == entryId
+          && getAfter(queue).data.nowServing == resource.data.queueNumber)
+        // Call Again: same number, count + time only.
+        || isCallStep(entryId, 'called')
+        || (step(entryId, 'called', 'held', ['heldAt', 'heldBy', 'holdReason'])
+          && stamped('heldAt', 'heldBy')
+          && request.resource.data.get('holdReason', 'other')
+            in ['not-present', 'stepped-out', 'other'])
+        || (step(entryId, 'held', 'waiting', ['resumedAt', 'resumedBy'])
+          && stamped('resumedAt', 'resumedBy'))
+        || (step(entryId, 'called', 'in-service', ['serviceStartedAt', 'serviceStartedBy'])
+          && stamped('serviceStartedAt', 'serviceStartedBy'))
+        // Undo Start: a correction window, not a rewind.
+        || (step(entryId, 'in-service', 'called', ['startUndoneAt', 'startUndoneBy'])
+          && stamped('startUndoneAt', 'startUndoneBy')
+          && request.time < resource.data.serviceStartedAt + duration.value(2, 'm'))
+        || (step(entryId, 'in-service', 'completed', ['completedAt', 'completedBy'])
+          && stamped('completedAt', 'completedBy')
+          && getAfter(appointmentPath(entryId)).data.status == 'completed')
+        || (step(entryId, 'called', 'no-show', ['noShowAt', 'noShowBy'])
+          && stamped('noShowAt', 'noShowBy')
+          && getAfter(appointmentPath(entryId)).data.status == 'no-show'));
+    }
+
+    // One event per action, numbered by the entry's eventCount, written in the
+    // same transaction as the change (so it can't be skipped or forged).
+    function isAuditEvent(entryId, eventId) {
+      let before = get(entryPath(entryId)).data;
+      let after = getAfter(entryPath(entryId)).data;
+      let e = request.resource.data;
+      let keys = ['action', 'from', 'to', 'at', 'by', 'byRole', 'hospitalId', 'queueId',
+        'queueNumber', 'patientName'];
+      return e.keys().hasAll(keys)
+        && e.keys().hasOnly(keys)
+        && e.hospitalId == after.hospitalId
+        && e.queueId == after.queueId
+        && e.queueNumber == after.queueNumber
+        && e.patientName == after.get('patientName', '')
+        && e.action in ['call', 'call-again', 'hold', 'resume', 'start', 'undo-start',
+          'complete', 'no-show']
+        && after.get('eventCount', 0) == before.get('eventCount', 0) + 1
+        && eventId == string(after.eventCount)
+        && e.from == before.status
+        && e.to == after.status
+        && e.at == request.time
+        && e.by == request.auth.uid
+        && e.byRole == get(memberPath(after.hospitalId)).data.role;
+    }
+
+    match /queueEntries/{entryId} {
+      allow read: if ownsResource()
+        || isStaffAt(resource.data.hospitalId)
+        || isDoctorFor(resource.data.hospitalId, resource.data.doctorId);
+      allow create: if signedIn() && isCheckInEntry(entryId);
+      allow update: if signedIn() && isOperatorEntryUpdate(entryId);
+      allow delete: if false;
+
+      // Audit history: staff and the assigned doctor read it, patients don't.
+      match /events/{eventId} {
+        allow read: if signedIn() && canOperate(get(entryPath(entryId)).data);
+        allow create: if signedIn() && isAuditEvent(entryId, eventId);
+        allow update, delete: if false;
+      }
+    }
+
+    // Hospital-wide audit history (collection-group queries): admins only.
+    match /{path=**}/events/{eventId} {
+      allow read: if isAdminAt(resource.data.hospitalId);
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

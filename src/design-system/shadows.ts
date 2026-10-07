@@ -13,6 +13,8 @@ export const elevation = {
   surface: "shadow-surface",
   /** Floating UI: sheets, popovers, menus. HeroUI applies this itself. */
   overlay: "shadow-overlay",
+  /** Orange glow under the primary CTA only. */
+  cta: "shadow-cta",
 } as const;
 
 export type Elevation = keyof typeof elevation;

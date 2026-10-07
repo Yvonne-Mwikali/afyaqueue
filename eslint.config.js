@@ -24,6 +24,10 @@ module.exports = [
               group: ["@react-navigation/*"],
               message: "Import from 'expo-router/react-navigation' instead.",
             },
+            {
+              group: ["firebase-admin", "firebase-admin/*"],
+              message: "firebase-admin is for local scripts only (scripts/), never the app.",
+            },
           ],
         },
       ],
