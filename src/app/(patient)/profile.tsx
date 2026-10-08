@@ -11,9 +11,14 @@ import { textRole } from "@/design-system";
 import { authErrorMessage } from "@/features/auth/auth-service";
 import { useSession } from "@/features/auth/session";
 import { useHospitalContext } from "@/features/hospitals/hospital-context";
+import { useNotificationPreferences } from "@/features/preferences/notification-preferences";
 import { THEME_OPTIONS, useThemePreference } from "@/features/preferences/theme-preference";
 import { useUserProfile } from "@/features/users/use-user-profile";
 import { initialsFrom } from "@/features/users/user-profile";
+import {
+  ensureNotificationPermission,
+  nativeNotificationsAvailable,
+} from "@/lib/local-notifications";
 import { formatLongDate } from "@/utils/date-format";
 
 type AccountItem = "personal-information" | "language" | "change-password" | "privacy";
@@ -27,8 +32,7 @@ export default function PatientProfileRoute(): JSX.Element {
   const name = profile?.fullName || user?.displayName || "";
   const email = profile?.email || user?.email || "";
   const initials = initialsFrom(name, email);
-  // Local only until preferences are persisted.
-  const [notifications, setNotifications] = useState(profile?.notificationsEnabled ?? true);
+  const [alerts, setAlerts] = useNotificationPreferences();
   const [theme, setTheme] = useThemePreference();
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const themeLabel = THEME_OPTIONS.find((option) => option.id === theme)?.label ?? "System";
@@ -57,9 +61,6 @@ export default function PatientProfileRoute(): JSX.Element {
           titleVariant="screen"
           initials={initials}
           onPressProfile={() => undefined}
-          // Notifications are not built yet.
-          onPressNotifications={() => undefined}
-          hasUnreadNotifications
         />
 
         {status === "loading" ? (
@@ -116,20 +117,18 @@ export default function PatientProfileRoute(): JSX.Element {
         )}
 
         <Group title="Preferences">
-          <ListGroup.Item
-            onPress={() => setNotifications((on) => !on)}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: notifications }}
-            accessibilityLabel="Notifications"
-          >
-            <ListGroup.ItemContent>
-              <ListGroup.ItemTitle>Notifications</ListGroup.ItemTitle>
-              <ListGroup.ItemDescription>Queue updates and reminders</ListGroup.ItemDescription>
-            </ListGroup.ItemContent>
-            <ListGroup.ItemSuffix>
-              <Switch isSelected={notifications} onSelectedChange={setNotifications} />
-            </ListGroup.ItemSuffix>
-          </ListGroup.Item>
+          <ToggleRow
+            title="Appointment reminders"
+            description="24 hours and 1 hour before"
+            value={alerts.appointmentReminders}
+            onChange={(on) => setAlerts({ appointmentReminders: on })}
+          />
+          <ToggleRow
+            title="Queue alerts"
+            description="When you're called, held or back in the queue"
+            value={alerts.queueAlerts}
+            onChange={(on) => setAlerts({ queueAlerts: on })}
+          />
           <Row
             title="Hospital"
             value={patientHospital?.name ?? ""}
@@ -216,6 +215,61 @@ function Row({
         </Typography>
       ) : null}
       <ListGroup.ItemSuffix />
+    </ListGroup.Item>
+  );
+}
+
+/**
+ * A phone-alert switch. Turning one on asks for permission; if the phone
+ * refuses, say where to change it (the in-app center keeps working).
+ */
+function ToggleRow({
+  title,
+  description,
+  value,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  value: boolean;
+  onChange: (on: boolean) => void;
+}): JSX.Element {
+  const toggle = (on: boolean): void => {
+    onChange(on);
+    if (!on) return;
+    if (!nativeNotificationsAvailable) {
+      // Expo Go on Android: the choice is saved for builds that support alerts.
+      if (__DEV__) {
+        Alert.alert(
+          "Phone alerts unavailable here",
+          "Expo Go on Android can't show device notifications. You'll still see everything under the bell."
+        );
+      }
+      return;
+    }
+    void ensureNotificationPermission().then((granted) => {
+      if (!granted) {
+        Alert.alert(
+          "Notifications are off",
+          "Allow notifications for this app in your phone's settings to get alerts. You'll still see everything under the bell."
+        );
+      }
+    });
+  };
+  return (
+    <ListGroup.Item
+      onPress={() => toggle(!value)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={title}
+    >
+      <ListGroup.ItemContent>
+        <ListGroup.ItemTitle>{title}</ListGroup.ItemTitle>
+        <ListGroup.ItemDescription>{description}</ListGroup.ItemDescription>
+      </ListGroup.ItemContent>
+      <ListGroup.ItemSuffix>
+        <Switch isSelected={value} onSelectedChange={toggle} />
+      </ListGroup.ItemSuffix>
     </ListGroup.Item>
   );
 }

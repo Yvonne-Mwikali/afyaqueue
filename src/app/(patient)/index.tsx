@@ -34,9 +34,6 @@ export default function PatientHomeRoute(): JSX.Element {
   const queueEntries = useQueueEntries();
   const openAppointments = (): void => router.navigate("/appointments");
   const openServices = (): void => router.navigate("/services");
-  // Notifications are not built yet; the bell and its unread dot are placeholder state.
-  const openNotifications = (): void => undefined;
-
   const serviceOf = (serviceId: string | undefined) =>
     catalog.services.find((service) => service.id === serviceId);
   const doctorOf = (doctorId: string | undefined) =>
@@ -62,8 +59,6 @@ export default function PatientHomeRoute(): JSX.Element {
         title={firstName ? `${greetingFor()}, ${firstName} 👋` : `${greetingFor()} 👋`}
         initials={initials}
         onPressProfile={() => router.navigate("/profile")}
-        onPressNotifications={openNotifications}
-        hasUnreadNotifications
       />
       <HospitalContextButton />
 

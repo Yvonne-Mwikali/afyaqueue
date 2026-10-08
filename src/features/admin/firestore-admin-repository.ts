@@ -424,6 +424,10 @@ export const firestoreAdminRepository: AdminRepository = {
           shortName: str(snapshot.get("shortName")),
           location: str(snapshot.get("location")),
           timeZone: str(snapshot.get("timeZone"), "Africa/Nairobi"),
+          phone: str(snapshot.get("phone")),
+          supportPhone: str(snapshot.get("supportPhone")),
+          emergencyPhone: str(snapshot.get("emergencyPhone")),
+          email: str(snapshot.get("email")),
         }),
       onError
     ),
@@ -437,32 +441,70 @@ export const firestoreAdminRepository: AdminRepository = {
     return guard(batch.commit());
   },
 
-  watchAudit: (hospitalId, since, onChange, onError) =>
-    onSnapshot(
+  watchAudit: (hospitalId, since, onChange, onError) => {
+    const db = firestore();
+    const after = Timestamp.fromDate(since);
+    let queueEvents: AuditEvent[] | null = null;
+    let calls: AuditEvent[] | null = null;
+    const emit = (): void => {
+      if (!queueEvents || !calls) return;
+      onChange(
+        [...queueEvents, ...calls].sort((a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0))
+      );
+    };
+    const timeOf = (value: unknown): Date | null =>
+      value instanceof Timestamp ? value.toDate() : null;
+    const stopEvents = onSnapshot(
       query(
-        collectionGroup(firestore(), "events"),
+        collectionGroup(db, "events"),
         where("hospitalId", "==", hospitalId),
-        where("at", ">=", Timestamp.fromDate(since)),
+        where("at", ">=", after),
         orderBy("at", "desc")
       ),
-      (snapshot) =>
-        onChange(
-          snapshot.docs.map((d): AuditEvent => {
-            const at = d.get("at");
-            return {
-              id: d.ref.path,
-              action: d.get("action") as QueueAction,
-              from: str(d.get("from")),
-              to: str(d.get("to")),
-              at: at instanceof Timestamp ? at.toDate() : null,
-              by: str(d.get("by")),
-              byRole: d.get("byRole") as MemberRole,
-              queueId: str(d.get("queueId")),
-              queueNumber: Number(d.get("queueNumber") ?? 0),
-              patientName: str(d.get("patientName")),
-            };
-          })
-        ),
+      (snapshot) => {
+        queueEvents = snapshot.docs.map((d): AuditEvent => ({
+          id: d.ref.path,
+          action: d.get("action") as QueueAction,
+          from: str(d.get("from")),
+          to: str(d.get("to")),
+          at: timeOf(d.get("at")),
+          by: str(d.get("by")),
+          byRole: d.get("byRole") as MemberRole,
+          queueId: str(d.get("queueId")),
+          queueNumber: Number(d.get("queueNumber") ?? 0),
+          patientName: str(d.get("patientName")),
+        }));
+        emit();
+      },
       onError
-    ),
+    );
+    const stopCalls = onSnapshot(
+      query(
+        collection(db, COLLECTIONS.callLogs),
+        where("hospitalId", "==", hospitalId),
+        where("at", ">=", after),
+        orderBy("at", "desc")
+      ),
+      (snapshot) => {
+        calls = snapshot.docs.map((d): AuditEvent => ({
+          id: d.ref.path,
+          action: "phone-call",
+          from: "",
+          to: "",
+          at: timeOf(d.get("at")),
+          by: str(d.get("actorId")),
+          byRole: d.get("actorRole") as MemberRole,
+          queueId: "",
+          queueNumber: Number(d.get("queueNumber") ?? 0),
+          patientName: str(d.get("patientName")),
+        }));
+        emit();
+      },
+      onError
+    );
+    return () => {
+      stopEvents();
+      stopCalls();
+    };
+  },
 };

@@ -21,7 +21,7 @@ import {
 import { useAvailability } from "@/features/appointments/use-availability";
 import { bookAppointment } from "@/features/appointments/use-patient-appointments";
 import { useSession } from "@/features/auth/session";
-import { useActiveHospitalId } from "@/features/hospitals/hospital-context";
+import { useActiveHospitalId, useHospitalContext } from "@/features/hospitals/hospital-context";
 import { ANY_AVAILABLE_DOCTOR_ID } from "@/features/doctors/doctor";
 import { useDoctors } from "@/features/doctors/use-doctors";
 import { useServiceCatalog } from "@/features/services/use-service-catalog";
@@ -38,6 +38,7 @@ export default function BookRoute(): JSX.Element {
   }>();
   const { user } = useSession();
   const activeHospitalId = useActiveHospitalId();
+  const { patientHospital } = useHospitalContext();
   // A booking belongs to the hospital it started at. If the patient switches
   // hospital mid-flow, stop rather than mix one hospital's service/doctor
   // into another's booking.
@@ -130,7 +131,13 @@ export default function BookRoute(): JSX.Element {
               if (!start || submitting) return;
               setSubmitting(true);
               bookAppointment(
-                { hospitalId, service, doctorId: doctor?.id ?? null, scheduledAt: start },
+                {
+                  hospitalId,
+                  service,
+                  doctorId: doctor?.id ?? null,
+                  scheduledAt: start,
+                  hospitalName: patientHospital?.name ?? "",
+                },
                 user?.id ?? null
               ).then(
                 (appointmentId) =>

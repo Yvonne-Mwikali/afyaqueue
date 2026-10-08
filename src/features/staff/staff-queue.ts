@@ -1,4 +1,6 @@
 import type { MemberRole } from "@/features/hospitals/hospital";
+import type { CallAttempt } from "./call-patient";
+import type { QueueNoticeContext } from "@/features/notifications/notification";
 import type { HoldReason, QueueAction } from "@/features/queues/queue-actions";
 import type { QueueEntryStatus } from "@/features/queues/queue-entry";
 import type { OrderableEntry } from "@/features/queues/queue-order";
@@ -15,7 +17,8 @@ export type StaffQueue = {
 
 /**
  * A queue entry with just enough context to operate it: the patient's
- * display name only (no contact details), appointment time and doctor.
+ * display name, callback number (for Call Patient), appointment time and
+ * doctor. Never the patient's profile.
  */
 export type StaffQueueEntry = OrderableEntry & {
   id: string;
@@ -24,6 +27,9 @@ export type StaffQueueEntry = OrderableEntry & {
   serviceId: string;
   status: QueueEntryStatus;
   patientName: string;
+  patientId: string;
+  /** Copied from the patient's profile at booking; "" when they gave none. */
+  patientPhone: string;
   doctorId: string | null;
   callCount: number;
   lastCalledAt: Date | null;
@@ -32,12 +38,15 @@ export type StaffQueueEntry = OrderableEntry & {
 };
 
 /**
- * One of today's appointments as staff see it: operational fields only.
- * Never includes contact details, date of birth or other appointments.
+ * One of today's appointments as staff see it: operational fields and the
+ * callback number only. Never date of birth, email or other appointments.
  */
 export type StaffVisit = {
   appointmentId: string;
   patientName: string;
+  patientId: string;
+  /** "" when the patient gave no phone number. */
+  patientPhone: string;
   serviceId: string;
   doctorId: string | null;
   scheduledAt: Date | null;
@@ -85,7 +94,9 @@ export interface StaffQueueRepository {
   callNext(
     queueId: string,
     candidates: readonly string[],
-    role: MemberRole
+    role: MemberRole,
+    /** Names for the patient's notification wording. */
+    context?: QueueNoticeContext
   ): Promise<string | null>;
   /**
    * Any other single-step action (Call Again, Hold, Resume, Start, Undo
@@ -95,6 +106,9 @@ export interface StaffQueueRepository {
     entryId: string,
     action: Exclude<QueueAction, "call">,
     role: MemberRole,
-    holdReason?: HoldReason
+    holdReason?: HoldReason,
+    context?: QueueNoticeContext
   ): Promise<void>;
+  /** Records that this member opened the dialer for a patient (no queue change). */
+  logCallAttempt(attempt: CallAttempt, role: MemberRole): Promise<void>;
 }

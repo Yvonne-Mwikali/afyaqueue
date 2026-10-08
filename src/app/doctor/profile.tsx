@@ -39,7 +39,6 @@ export default function DoctorProfileRoute(): JSX.Element {
         titleVariant="screen"
         initials={initials}
         onPressProfile={() => undefined}
-        onPressNotifications={() => undefined}
       />
       <View className="flex-row items-center gap-3">
         <Avatar size="lg" variant="soft" color="accent" alt="">

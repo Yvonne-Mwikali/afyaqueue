@@ -35,8 +35,6 @@ export default function PatientServicesRoute(): JSX.Element {
         initials={initials}
         onPressProfile={() => router.navigate("/profile")}
         // Notifications are not built yet.
-        onPressNotifications={() => undefined}
-        hasUnreadNotifications
       />
 
       <View className="gap-4">

@@ -48,7 +48,6 @@ export default function StaffServicesRoute(): JSX.Element {
         initials={initials}
         onPressProfile={() => router.navigate("/staff/settings")}
         // Notifications are not built yet.
-        onPressNotifications={() => undefined}
       />
 
       {loading ? (

@@ -5,12 +5,14 @@ import {
   deleteDoc,
   doc,
   type DocumentData,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
   serverTimestamp,
   Timestamp,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 import { AppError } from "@/lib/app-error";
@@ -21,6 +23,62 @@ import { type AbsenceKind, type DoctorAbsence, parseTime, type ScheduleWindow } 
 import type { DoctorAvailability, ScheduleRepository } from "./schedule-repository";
 
 const KINDS: readonly AbsenceKind[] = ["leave", "unavailable", "temporary"];
+
+/**
+ * Tells each patient booked with this doctor during new time off that
+ * their appointment is affected ("{appointmentId}_affected_{absenceId}",
+ * create-only, so it's sent once). Rescheduling is up to the hospital.
+ */
+async function notifyAffected(
+  hospitalId: string,
+  doctorId: string,
+  absenceId: string,
+  startAt: Date,
+  endAt: Date
+): Promise<number> {
+  const db = firestore();
+  const [booked, doctor, hospital] = await Promise.all([
+    getDocs(
+      query(
+        collection(db, COLLECTIONS.appointments),
+        where("hospitalId", "==", hospitalId),
+        where("doctorId", "==", doctorId),
+        where("scheduledAt", ">=", Timestamp.fromDate(startAt)),
+        where("scheduledAt", "<", Timestamp.fromDate(endAt))
+      )
+    ),
+    getDoc(doc(db, COLLECTIONS.doctors, doctorId)),
+    getDoc(doc(db, COLLECTIONS.hospitals, hospitalId)),
+  ]);
+  const doctorName =
+    typeof doctor.get("name") === "string" ? String(doctor.get("name")) : "Your doctor";
+  const hospitalName =
+    typeof hospital.get("name") === "string" ? String(hospital.get("name")) : "The hospital";
+  const affected = booked.docs.filter(
+    (appointment) =>
+      appointment.get("status") === "booked" && typeof appointment.get("patientId") === "string"
+  );
+  if (affected.length === 0) return 0;
+  const batch = writeBatch(db);
+  for (const appointment of affected) {
+    const at = (appointment.get("scheduledAt") as Timestamp).toDate();
+    const day = at.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+    const time = at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    batch.set(doc(db, COLLECTIONS.notifications, `${appointment.id}_affected_${absenceId}`), {
+      userId: appointment.get("patientId"),
+      hospitalId,
+      type: "appointment-affected",
+      title: "Your appointment may change",
+      body: `${doctorName} is unavailable on ${day}. Your ${time} appointment may need a new time. ${hospitalName} will contact you.`,
+      read: false,
+      createdAt: serverTimestamp(),
+      relatedAppointmentId: appointment.id,
+      relatedHospitalId: hospitalId,
+    });
+  }
+  await batch.commit();
+  return affected.length;
+}
 
 function parseWindow(id: string, data: DocumentData): ScheduleWindow | null {
   const startMinutes = parseTime(data.startTime);
@@ -138,8 +196,9 @@ export const firestoreScheduleRepository: ScheduleRepository = {
   addAbsence: async ({ hospitalId, doctorId, startAt, endAt, kind }) => {
     const uid = firebaseAuth().currentUser?.uid;
     if (!uid) throw new AppError("Please sign in again.");
+    let absenceId: string;
     try {
-      await addDoc(collection(firestore(), COLLECTIONS.doctorAbsences), {
+      const ref = await addDoc(collection(firestore(), COLLECTIONS.doctorAbsences), {
         hospitalId,
         doctorId,
         startAt: Timestamp.fromDate(startAt),
@@ -148,9 +207,12 @@ export const firestoreScheduleRepository: ScheduleRepository = {
         createdBy: uid,
         createdAt: serverTimestamp(),
       });
+      absenceId = ref.id;
     } catch (error) {
       rethrow(error, "You can only add future absences for yourself.");
     }
+    // Best effort: the time off is saved even if a notification can't be.
+    await notifyAffected(hospitalId, doctorId, absenceId, startAt, endAt).catch(() => undefined);
   },
 
   removeAbsence: async (absenceId) => {

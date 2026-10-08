@@ -30,26 +30,43 @@ import type { HospitalRepository } from "./hospital-repository";
 
 const ROLES: readonly MemberRole[] = ["staff", "doctor", "admin"];
 
+const OPTIONAL_TEXT = [
+  "shortName",
+  "location",
+  "phone",
+  "supportPhone",
+  "emergencyPhone",
+  "email",
+] as const;
+
+function parseHospital(id: string, data: DocumentData): Hospital | null {
+  if (typeof data.name !== "string") return null;
+  const hospital: Hospital = { id, name: data.name };
+  for (const key of OPTIONAL_TEXT) {
+    const value: unknown = data[key];
+    // Empty strings mean "not provided": leave the field out.
+    if (typeof value === "string" && value.trim() !== "") hospital[key] = value.trim();
+  }
+  return hospital;
+}
+
 export const firestoreHospitalRepository: HospitalRepository = {
   listActive: async () => {
     const snapshot = await getDocs(
       query(collection(firestore(), COLLECTIONS.hospitals), where("active", "==", true))
     );
     return snapshot.docs
-      .flatMap((hospital): Hospital[] => {
-        const { name, shortName, location } = hospital.data();
-        if (typeof name !== "string") return [];
-        return [
-          {
-            id: hospital.id,
-            name,
-            ...(typeof shortName === "string" ? { shortName } : {}),
-            ...(typeof location === "string" ? { location } : {}),
-          },
-        ];
-      })
+      .flatMap((hospital) => parseHospital(hospital.id, hospital.data()) ?? [])
       .sort((a, b) => a.name.localeCompare(b.name));
   },
+
+  watchHospital: (hospitalId, onChange, onError) =>
+    onSnapshot(
+      doc(firestore(), COLLECTIONS.hospitals, hospitalId),
+      (snapshot) =>
+        onChange(snapshot.exists() ? parseHospital(snapshot.id, snapshot.data()) : null),
+      onError
+    ),
 
   watchMemberships: (userId, onChange, onError) =>
     onSnapshot(

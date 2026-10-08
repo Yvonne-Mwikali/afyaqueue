@@ -113,13 +113,29 @@ service cloud.firestore {
     }
 
     // ---- Hospitals ---------------------------------------------------------
+    // Public contact details: phone numbers as dialable text, optional email.
+    function isPhoneOrEmpty(value) {
+      return value == null || (value is string && value.matches('^[+0-9 ()-]{0,20}$'));
+    }
+
+    function isValidContact(data) {
+      return isPhoneOrEmpty(data.get('phone', null))
+        && isPhoneOrEmpty(data.get('supportPhone', null))
+        && isPhoneOrEmpty(data.get('emergencyPhone', null))
+        && (data.get('email', null) == null
+          || (data.email is string
+            && (data.email == '' || data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'))));
+    }
+
     // Admins edit their own hospital's details. The id never changes, and
     // `active` isn't editable from the app (deactivating would lock out patients).
     match /hospitals/{hospitalId} {
       allow read: if signedIn() && (resource.data.active == true || isMemberAt(hospitalId));
       allow update: if isAdminAt(hospitalId)
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['name', 'shortName', 'location', 'timeZone', 'updatedAt'])
+          .hasOnly(['name', 'shortName', 'location', 'timeZone', 'phone', 'supportPhone',
+            'emergencyPhone', 'email', 'updatedAt'])
+        && isValidContact(request.resource.data)
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.updatedAt == request.time;
@@ -408,8 +424,9 @@ service cloud.firestore {
     // Not enforceable here (needs trusted code): doctor double-booking and
     // patient overlaps (rules 7–8), slot availability.
     function appointmentFields() {
-      return ['hospitalId', 'patientId', 'patientName', 'visitId', 'serviceId', 'doctorId',
-        'scheduledAt', 'date', 'durationMinutes', 'visitType', 'status', 'createdAt', 'updatedAt'];
+      return ['hospitalId', 'patientId', 'patientName', 'patientPhone', 'visitId', 'serviceId',
+        'doctorId', 'scheduledAt', 'date', 'durationMinutes', 'visitType', 'status', 'createdAt',
+        'updatedAt'];
     }
 
     function bookedService(data) {
@@ -439,6 +456,11 @@ service cloud.firestore {
         // Display name for staff: must be the patient's own profile name.
         && data.patientName == get(/databases/$(database)/documents/users/$(request.auth.uid))
           .data.get('fullName', '')
+        // Callback number for this visit: must be the patient's own profile phone.
+        // Readable only by those who can read the appointment (owner, its
+        // hospital's staff, its assigned doctor).
+        && data.patientPhone == get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('phone', '')
         && data.status == 'booked'
         && data.serviceId is string
         && exists(/databases/$(database)/documents/services/$(data.serviceId))
@@ -690,7 +712,7 @@ service cloud.firestore {
 
     function entryFields() {
       return ['queueId', 'appointmentId', 'visitId', 'patientId', 'patientName', 'queueNumber',
-        'status', 'scheduledPriority', 'checkedInAt', 'hospitalId', 'doctorId'];
+        'status', 'scheduledPriority', 'checkedInAt', 'hospitalId', 'doctorId', 'patientPhone'];
     }
 
     // Entry id = appointment id, so an appointment can only ever have one.
@@ -709,6 +731,7 @@ service cloud.firestore {
         && e.queueId == before.serviceId + '_' + before.date
         && e.visitId == before.visitId
         && e.patientName == before.get('patientName', '')
+        && e.patientPhone == before.get('patientPhone', '')
         && e.hospitalId == before.hospitalId
         // The appointment's doctor (null = any), so doctors see their own queue.
         && e.doctorId == before.get('doctorId', null)
@@ -829,6 +852,120 @@ service cloud.firestore {
         allow create: if signedIn() && isAuditEvent(entryId, eventId);
         allow update, delete: if false;
       }
+    }
+
+    // ---- Notifications ------------------------------------------------------
+    // notifications/{id}: one user's inbox. Without Cloud Functions, the
+    // person whose action causes an event writes the notification in the
+    // same write, and these rules tie it to that event, so nobody can
+    // forge or duplicate one (IDs are per event; create-only).
+    function notificationFields() {
+      return ['userId', 'hospitalId', 'type', 'title', 'body', 'read', 'createdAt',
+        'relatedAppointmentId', 'relatedQueueEntryId', 'relatedHospitalId'];
+    }
+
+    function isNotificationShape(data) {
+      return data.keys().hasAll(['userId', 'hospitalId', 'type', 'title', 'body', 'read', 'createdAt'])
+        && data.keys().hasOnly(notificationFields())
+        && data.title is string && data.title.size() <= 120
+        && data.body is string && data.body.size() <= 300
+        && data.read == false
+        && data.createdAt == request.time;
+    }
+
+    function queueEntryPathOf(notificationId) {
+      return /databases/$(database)/documents/queueEntries/$(notificationId.split('_')[0]);
+    }
+
+    // Queue events: "{entryId}_{eventNumber}", written with that event by
+    // the staff member/doctor who performed it, for the entry's patient.
+    function isQueueNotification(notificationId, data) {
+      let entryId = notificationId.split('_')[0];
+      let n = notificationId.split('_')[1];
+      let entry = getAfter(queueEntryPathOf(notificationId)).data;
+      let event = getAfter(/databases/$(database)/documents/queueEntries/$(entryId)/events/$(n)).data;
+      let types = { 'call': 'queue-called', 'call-again': 'queue-called-again',
+        'hold': 'queue-held', 'resume': 'queue-resumed' };
+      return notificationId == entryId + '_' + n
+        && string(entry.eventCount) == n
+        && event.by == request.auth.uid
+        && event.action in types
+        && data.type == types[event.action]
+        && data.userId == entry.patientId
+        && data.hospitalId == entry.hospitalId
+        && data.relatedQueueEntryId == entryId;
+    }
+
+    // "{appointmentId}_booked": the patient, about their own new booking.
+    function isBookingNotification(notificationId, data) {
+      let appointment = getAfter(/databases/$(database)/documents/appointments/$(data.relatedAppointmentId)).data;
+      return notificationId == data.relatedAppointmentId + '_booked'
+        && data.type == 'appointment-booked'
+        && data.userId == request.auth.uid
+        && appointment.patientId == request.auth.uid
+        && appointment.hospitalId == data.hospitalId;
+    }
+
+    // "{entryId}_checkin": the patient's check-in tells the assigned doctor.
+    function isCheckInNotification(notificationId, data) {
+      let entryId = data.relatedQueueEntryId;
+      let entry = getAfter(/databases/$(database)/documents/queueEntries/$(entryId)).data;
+      return notificationId == entryId + '_checkin'
+        && data.type == 'patient-checked-in'
+        && !exists(/databases/$(database)/documents/queueEntries/$(entryId))
+        && entry.patientId == request.auth.uid
+        && entry.hospitalId == data.hospitalId
+        && entry.doctorId is string
+        && data.userId == get(/databases/$(database)/documents/doctors/$(entry.doctorId)).data.userId;
+    }
+
+    // "{appointmentId}_affected_{absenceId}": doctor time off now overlaps a
+    // booking; written by whoever added it (the doctor or a hospital admin).
+    function isAffectedNotification(notificationId, data) {
+      let appointment = get(/databases/$(database)/documents/appointments/$(data.relatedAppointmentId)).data;
+      return notificationId.matches('^' + data.relatedAppointmentId + '_affected_[A-Za-z0-9]+$')
+        && data.type == 'appointment-affected'
+        && canOperate(appointment)
+        && appointment.status == 'booked'
+        && data.userId == appointment.patientId
+        && data.hospitalId == appointment.hospitalId;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && isNotificationShape(request.resource.data)
+        && (isQueueNotification(notificationId, request.resource.data)
+          || isBookingNotification(notificationId, request.resource.data)
+          || isCheckInNotification(notificationId, request.resource.data)
+          || isAffectedNotification(notificationId, request.resource.data));
+      // The owner only marks read.
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
+      allow delete: if false;
+    }
+
+    // ---- Phone call attempts -----------------------------------------------
+    // "Call patient" opens the device dialer and records that a staff member
+    // or the assigned doctor *started* a call. Not whether it connected.
+    // Admins read it with the audit history.
+    match /callLogs/{logId} {
+      allow read: if isAdminAt(resource.data.hospitalId);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['hospitalId', 'appointmentId', 'queueEntryId',
+          'patientId', 'patientName', 'queueNumber', 'actorId', 'actorRole', 'at'])
+        && canOperate(get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data)
+        && get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId))
+          .data.hospitalId == request.resource.data.hospitalId
+        && get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId))
+          .data.patientId == request.resource.data.patientId
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.actorRole
+          == get(memberPath(request.resource.data.hospitalId)).data.role
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
     }
 
     // Hospital-wide audit history (collection-group queries): admins only.

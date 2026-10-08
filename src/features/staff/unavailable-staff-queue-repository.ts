@@ -25,4 +25,5 @@ export const unavailableStaffQueueRepository: StaffQueueRepository = {
   },
   callNext: unavailable,
   perform: unavailable,
+  logCallAttempt: unavailable,
 };

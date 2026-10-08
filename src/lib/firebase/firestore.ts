@@ -12,6 +12,8 @@ export const COLLECTIONS = {
   hospitals: "hospitals",
   hospitalMembers: "hospitalMembers",
   hospitalInvites: "hospitalInvites",
+  notifications: "notifications",
+  callLogs: "callLogs",
   hospitalPatients: "hospitalPatients",
   doctorSchedules: "doctorSchedules",
   doctorAbsences: "doctorAbsences",

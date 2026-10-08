@@ -20,6 +20,7 @@ import {
   useTodayQueues,
   useTodayVisits,
 } from "@/features/staff/use-staff-queues";
+import { useCallPatient, visitCallTarget } from "@/features/staff/use-call-patient";
 import { formatTime } from "@/utils/date-format";
 
 const NOTES: Partial<Record<RosterStatus, string>> = {
@@ -38,6 +39,7 @@ export default function StaffPatientVisitRoute(): JSX.Element {
   const { services } = useServiceCatalog();
   const { doctors } = useDoctors();
   const controls = useQueueEntryControls();
+  const callPatient = useCallPatient();
   const back = (): void => router.back();
   const header = <ScreenHeader title="Today's Visit" onBack={back} />;
 
@@ -110,6 +112,19 @@ export default function StaffPatientVisitRoute(): JSX.Element {
           },
         ]}
       />
+
+      {/* A phone call only: the queue doesn't change. */}
+      <Button
+        variant="secondary"
+        onPress={() => callPatient(visitCallTarget(row))}
+        accessibilityHint="Opens your phone's dialer. The queue doesn't change."
+      >
+        <Button.Label>
+          {row.entry?.patientPhone || row.patientPhone
+            ? `Call patient · ${row.entry?.patientPhone || row.patientPhone}`
+            : "Call patient · no phone number"}
+        </Button.Label>
+      </Button>
 
       {NOTES[row.rosterStatus] ? (
         <Typography.Paragraph type={textRole.supporting.type} color="muted">

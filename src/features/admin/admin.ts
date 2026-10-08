@@ -1,3 +1,4 @@
+import type { HospitalContact } from "@/features/hospitals/hospital-contact";
 import type { HospitalInvite, MemberRole } from "@/features/hospitals/hospital";
 import type { QueueAction } from "@/features/queues/queue-actions";
 import type { ServiceCategory, ServiceMode } from "@/features/services/service-catalog";
@@ -39,7 +40,7 @@ export type AdminLink = { doctorId: string; serviceId: string; active: boolean }
 
 export type AdminWindow = { dayOfWeek: number; startTime: string; endTime: string };
 
-export type AdminHospital = {
+export type AdminHospital = HospitalContact & {
   id: string;
   name: string;
   shortName: string;
@@ -47,15 +48,21 @@ export type AdminHospital = {
   timeZone: string;
 };
 
+/**
+ * A queue change, or "phone-call": a member opened the dialer for a
+ * patient (Call patient). That records the attempt, not that it connected.
+ */
 export type AuditEvent = {
   id: string;
-  action: QueueAction;
+  action: QueueAction | "phone-call";
   from: string;
   to: string;
   at: Date | null;
   by: string;
   byRole: MemberRole;
+  /** "" for phone calls. */
   queueId: string;
+  /** 0 for a phone call before check-in. */
   queueNumber: number;
   patientName: string;
 };

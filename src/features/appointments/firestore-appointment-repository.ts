@@ -114,9 +114,12 @@ export const firestoreAppointmentRepository: AppointmentRepository = {
     // Display name for staff screens, copied from the patient's own profile
     // (rules check it matches), so staff never need to read profiles.
     let patientName = "";
+    let patientPhone = "";
     try {
       const profile = await getDoc(doc(db, COLLECTIONS.users, patientId));
       patientName = String(profile.get("fullName") ?? "");
+      // Callback number for this visit (rules check it's the profile phone).
+      patientPhone = String(profile.get("phone") ?? "");
     } catch (error) {
       rethrow(error, "We couldn't book this time. Please try again.");
     }
@@ -126,6 +129,7 @@ export const firestoreAppointmentRepository: AppointmentRepository = {
       hospitalId,
       patientId,
       patientName,
+      patientPhone,
       visitId: visitIdFor(patientId, scheduledAt),
       serviceId: appointment.serviceId,
       doctorId,
@@ -154,6 +158,18 @@ export const firestoreAppointmentRepository: AppointmentRepository = {
         });
       }
     }
+    // The patient's own confirmation in their inbox (rules tie it to this booking).
+    batch.set(doc(db, COLLECTIONS.notifications, `${ref.id}_booked`), {
+      userId: patientId,
+      hospitalId,
+      type: "appointment-booked",
+      title: appointment.notice.title,
+      body: appointment.notice.body,
+      read: false,
+      createdAt: serverTimestamp(),
+      relatedAppointmentId: ref.id,
+      relatedHospitalId: hospitalId,
+    });
     try {
       await withTimeout(
         batch.commit(),

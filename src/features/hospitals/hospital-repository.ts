@@ -3,6 +3,12 @@ import type { Hospital, HospitalInvite, HospitalMembership } from "./hospital";
 export interface HospitalRepository {
   /** Active hospitals patients can choose from. */
   listActive(): Promise<Hospital[]>;
+  /** One hospital's public details, live (Contact follows admin edits). */
+  watchHospital(
+    hospitalId: string,
+    onChange: (hospital: Hospital | null) => void,
+    onError: (error: unknown) => void
+  ): () => void;
   /** The user's active memberships (staff/doctor/admin), live. */
   watchMemberships(
     userId: string,

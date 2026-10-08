@@ -1,18 +1,18 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Avatar, PressableFeedback, Typography, useThemeColor } from "heroui-native";
 import type { JSX } from "react";
 import { View } from "react-native";
 
 import { BrandWordmark } from "@/components/shared/brand-wordmark";
 import { type TextRole, textRole } from "@/design-system";
+import { useNotifications } from "@/features/notifications/notifications-context";
 
 type PatientHeaderProps = {
   title: string;
   subtitle?: string;
   initials: string;
   onPressProfile: () => void;
-  onPressNotifications: () => void;
-  hasUnreadNotifications?: boolean;
   /** "greeting" (Home, 22) or "screen" (tab screens such as Services, 24). */
   titleVariant?: "greeting" | "screen";
 };
@@ -26,11 +26,12 @@ export function PatientHeader({
   subtitle,
   initials,
   onPressProfile,
-  onPressNotifications,
-  hasUnreadNotifications = false,
   titleVariant = "greeting",
 }: PatientHeaderProps): JSX.Element {
   const foreground = useThemeColor("foreground");
+  const router = useRouter();
+  const { unreadCount } = useNotifications();
+  const badge = unreadCount > 9 ? "9+" : String(unreadCount);
   const titleRole: TextRole = titleVariant === "screen" ? textRole.pageTitle : textRole.cardTitle;
 
   return (
@@ -38,16 +39,24 @@ export function PatientHeader({
       <View className="flex-row items-center">
         <BrandWordmark className="flex-1" />
         <PressableFeedback
-          onPress={onPressNotifications}
+          onPress={() => router.navigate("/notifications")}
           accessibilityRole="button"
           accessibilityLabel={
-            hasUnreadNotifications ? "Notifications, unread items" : "Notifications"
+            unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"
           }
           className="size-12 items-center justify-center rounded-full"
         >
           <MaterialCommunityIcons name="bell-outline" size={26} color={foreground} />
-          {hasUnreadNotifications ? (
-            <View className="absolute right-3 top-2.5 size-2.5 rounded-full bg-brand-vivid" />
+          {unreadCount > 0 ? (
+            <View className="absolute right-1 top-1 min-w-5 items-center rounded-full bg-accent px-1">
+              <Typography
+                type={textRole.micro.type}
+                weight="bold"
+                className="text-accent-foreground"
+              >
+                {badge}
+              </Typography>
+            </View>
           ) : null}
         </PressableFeedback>
         <PressableFeedback

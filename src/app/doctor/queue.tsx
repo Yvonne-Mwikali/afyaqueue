@@ -72,7 +72,6 @@ export default function DoctorQueueRoute(): JSX.Element {
         titleVariant="screen"
         initials={initialsFrom((doctor?.name ?? "").replace(/^Dr\.?\s+/, ""))}
         onPressProfile={() => router.navigate("/doctor/profile")}
-        onPressNotifications={() => undefined}
       />
       <Typography type={textRole.supporting.type} color="muted">
         {counts.waiting} waiting · {counts.called} called · {counts.held} held · {counts.inService}{" "}

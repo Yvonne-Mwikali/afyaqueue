@@ -7,6 +7,7 @@ import { HeroUINativeProvider } from "heroui-native";
 import { type JSX, useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { NotificationBridge } from "@/components/shared/notification-bridge";
 import { AccountGate } from "@/components/shared/account-gate";
 import { InviteGate } from "@/components/shared/invite-gate";
 import { HospitalPickerGate, WorkspacePicker } from "@/components/shared/context-pickers";
@@ -14,6 +15,8 @@ import { fontAssets, useNavigationTheme } from "@/design-system";
 import { SessionProvider, useSession } from "@/features/auth/session";
 import { HospitalProvider, useHospitalContext } from "@/features/hospitals/hospital-context";
 import { destinationFor } from "@/features/hospitals/routing";
+import { NotificationsProvider } from "@/features/notifications/notifications-context";
+import { restoreNotificationPreferences } from "@/features/preferences/notification-preferences";
 import { restoreThemePreference } from "@/features/preferences/theme-preference";
 import { useUserProfile } from "@/features/users/use-user-profile";
 import { authService } from "@/lib/backend";
@@ -23,7 +26,7 @@ import "../global.css";
 void SplashScreen.preventAutoHideAsync();
 
 // Apply the saved appearance before the first screen renders.
-const themeRestored = restoreThemePreference();
+const themeRestored = Promise.all([restoreThemePreference(), restoreNotificationPreferences()]);
 
 export default function RootLayout(): JSX.Element | null {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
@@ -43,7 +46,10 @@ export default function RootLayout(): JSX.Element | null {
       <HeroUINativeProvider>
         <SessionProvider service={authService}>
           <HospitalProvider>
-            <NavigationRoot />
+            <NotificationsProvider>
+              <NavigationRoot />
+              <NotificationBridge />
+            </NotificationsProvider>
           </HospitalProvider>
         </SessionProvider>
         <StatusBar style="auto" />
@@ -149,6 +155,10 @@ function NavigationRoot(): JSX.Element | null {
         </Stack.Protected>
         <Stack.Protected guard={area === "doctor"}>
           <Stack.Screen name="doctor" />
+        </Stack.Protected>
+        {/* Every signed-in area: the bell opens it. */}
+        <Stack.Protected guard={area !== null}>
+          <Stack.Screen name="notifications" />
         </Stack.Protected>
         {/* Hospital admins only (their workspace's admin membership). */}
         <Stack.Protected guard={area === "staff" && hospitals.workspace?.role === "admin"}>

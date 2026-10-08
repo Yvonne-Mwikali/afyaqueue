@@ -16,7 +16,13 @@ Every operational record carries **`hospitalId`**: services, doctors, doctorServ
 | `location`               | string?   | Free text                              |
 | `timeZone`               | string    | e.g. `Africa/Nairobi` (schedule times) |
 | `active`                 | bool      | Patients only see active hospitals     |
+| `phone`                  | string?   | Main line; patient "Call hospital"     |
+| `supportPhone`           | string?   |                                        |
+| `emergencyPhone`         | string?   | Optional                               |
+| `email`                  | string?   |                                        |
 | `createdAt`, `updatedAt` | Timestamp |                                        |
+
+Contact fields are edited by that hospital's admins (Admin → Hospital) and shown on the patient Contact tab, live. Empty means "not provided": the app hides it and never invents one; "Call hospital" is disabled without `phone`. Rules check the format (phone: `^[+0-9 ()-]{0,20}$`, email: simple `a@b.c`).
 
 ### hospitalMembers/{hospitalId}_{uid}
 
@@ -329,7 +335,50 @@ All writes are hospital-scoped: an admin of A can't touch B. Staff, doctors and 
 | `doctorSlots`                           | busy times       | No patient details                                                                                 |
 | `patientSlots`                          | no               | Owner only                                                                                         |
 
-Staff screens never show phone, email, date of birth or other appointments. `scripts/backfill-patient-names.mjs` fills `patientName` on documents created before it existed.
+Staff screens never show email, date of birth or other appointments. The only contact detail is the **callback number** `patientPhone`, copied from the patient's profile onto the appointment at booking and onto the queue entry at check-in (rules require it to equal the profile's `phone`, so nobody can plant a different number). It is readable exactly where the appointment/entry is: the patient, staff/admins of that hospital, and the assigned doctor; never other doctors or other hospitals. A later profile change doesn't update existing bookings. `scripts/backfill-patient-names.mjs` and `scripts/backfill-patient-phones.mjs` (open visits only) fill these on older documents.
+
+## notifications/{id} _(implemented)_
+
+One user's in-app inbox. With no Cloud Functions, the person whose action causes the event writes the notification **in the same write** (batch or transaction), and rules tie it to that event. IDs are deterministic and documents create-only, so the same event can never produce two notifications.
+
+| Field                                                              | Type      | Notes                                                                                                                                   |
+| ------------------------------------------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `userId`                                                           | string    | Recipient; only they can read it                                                                                                        |
+| `hospitalId`                                                       | string    |                                                                                                                                         |
+| `type`                                                             | string    | `appointment-booked`, `appointment-affected`, `queue-called`, `queue-called-again`, `queue-held`, `queue-resumed`, `patient-checked-in` |
+| `title`, `body`                                                    | string    | Patient-facing wording (≤120 / ≤300 chars)                                                                                              |
+| `read`                                                             | bool      | Created `false`; the owner may only set it to `true`                                                                                    |
+| `createdAt`                                                        | Timestamp | Server time                                                                                                                             |
+| `relatedAppointmentId`, `relatedQueueEntryId`, `relatedHospitalId` | string?   | For tap-to-open                                                                                                                         |
+
+| ID                                     | Written by                            | Rule check                                                                                       |
+| -------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `{entryId}_{n}`                        | staff/doctor performing queue event n | Event n exists (same write), was by them, its action maps to `type`, recipient = entry's patient |
+| `{appointmentId}_booked`               | the patient, with the booking         | Their own appointment                                                                            |
+| `{entryId}_checkin`                    | the patient, with check-in            | Recipient = the assigned doctor's account                                                        |
+| `{appointmentId}_affected_{absenceId}` | doctor/admin adding time off          | They can operate that booked appointment; recipient = its patient                                |
+
+Queue notifications are sent for Call, Call Again, Hold and Resume only. No delete. Index: `userId ASC, createdAt DESC`.
+
+### Phone alerts (Expo Go)
+
+- **Works now (local notifications, `expo-notifications`):** reminders 24 h and 1 h before each booked appointment (identifiers `appt-{id}-{24h|1h}-{startMillis}`; re-synced whenever appointments change, so cancelled, checked-in, completed or moved appointments lose their old reminders; cleared on sign-out or when turned off), and a phone alert for each new queue notification that arrives **while the app is running** (foreground or recently backgrounded). Profile → Preferences: _Appointment reminders_, _Queue alerts_ (stored on the device).
+- **Not in Expo Go:** remote push, i.e. an alert when the app is fully closed. Expo Go (SDK 53+) removed remote push on Android, and the module logs a warning that it is "not fully supported in Expo Go".
+- **True push later needs:** a development/production build (EAS), FCM credentials (Android) and an APNs key (iOS), saving each device's Expo push token (e.g. `users/{uid}/devices/{token}`), and **trusted code to send**. On Spark that means either Cloud Functions on the Blaze plan (an `onCreate` trigger on `notifications/{id}` calling the Expo Push API) or a separate small server. The in-app model above stays the same; push only becomes another delivery channel.
+
+## callLogs/{auto-id} _(implemented)_
+
+"Call patient" (staff, admin, assigned doctor) opens the phone's dialer with `tel:`. It is a phone call, not a queue action: queue status never changes. After the dialer opens, the app records the attempt. It does **not** prove the call connected.
+
+| Field                         | Notes                                  |
+| ----------------------------- | -------------------------------------- |
+| `hospitalId`, `appointmentId` | Must match the appointment             |
+| `queueEntryId`, `queueNumber` | `null` before check-in                 |
+| `patientId`, `patientName`    | `patientId` must match the appointment |
+| `actorId`, `actorRole`        | The caller and their membership role   |
+| `at`                          | Server time                            |
+
+Create: only someone who can operate that appointment (its hospital's staff/admins, or its assigned doctor), as themselves, with their real role. Read: that hospital's admins (Admin → Audit, "Phone call"). Patients and staff can't read it. No update/delete. Index: `hospitalId ASC, at DESC`.
 
 ## Still needs trusted server code (Cloud Functions on Blaze, or staff tools)
 

@@ -70,7 +70,6 @@ export default function DoctorScheduleRoute(): JSX.Element {
         titleVariant="screen"
         initials={initialsFrom((doctor?.name ?? "").replace(/^Dr\.?\s+/, ""))}
         onPressProfile={() => router.navigate("/doctor/profile")}
-        onPressNotifications={() => undefined}
       />
 
       {schedule.status === "loading" ? (

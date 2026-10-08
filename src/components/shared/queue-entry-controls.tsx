@@ -1,11 +1,13 @@
-import { BottomSheet, PressableFeedback, Typography } from "heroui-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { BottomSheet, PressableFeedback, Typography, useThemeColor } from "heroui-native";
 import { type JSX, useState } from "react";
 import { Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { spacing, textRole } from "@/design-system";
+import { iconSize, spacing, textRole, useBrandColor } from "@/design-system";
 import { ACTION_LABELS, actionsFor, type QueueAction } from "@/features/queues/queue-actions";
 import type { StaffQueueEntry } from "@/features/staff/staff-queue";
+import { entryCallTarget, useCallPatient } from "@/features/staff/use-call-patient";
 import { useQueueActions } from "@/features/staff/use-staff-queues";
 import { errorMessage } from "@/lib/app-error";
 
@@ -27,6 +29,9 @@ export function useQueueEntryControls(): {
 } {
   const insets = useSafeAreaInsets();
   const actions = useQueueActions();
+  const callPatient = useCallPatient();
+  const muted = useThemeColor("muted");
+  const vivid = useBrandColor("brand-vivid");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<StaffQueueEntry | null>(null);
 
@@ -38,7 +43,7 @@ export function useQueueEntryControls(): {
         ? actions.callNext(entry.queueId, [entry.id]).then((called) => {
             if (!called) Alert.alert("Couldn't call", "This patient is no longer waiting.");
           })
-        : actions.perform(entry.id, action);
+        : actions.perform(entry, action);
     work
       .catch((error: unknown) => Alert.alert("Couldn't update the queue", errorMessage(error)))
       .finally(() => setBusyId(null));
@@ -62,7 +67,7 @@ export function useQueueEntryControls(): {
     busyId,
     run,
     rowProps: (entry) => {
-      const { primary, secondary: more } = actionsFor(entry, new Date());
+      const { primary } = actionsFor(entry, new Date());
       return {
         ...(primary
           ? {
@@ -73,7 +78,8 @@ export function useQueueEntryControls(): {
               },
             }
           : {}),
-        ...(more.length > 0 ? { onMore: () => setMenuFor(entry) } : {}),
+        // Always available: Call patient (phone) lives in the sheet too.
+        onMore: () => setMenuFor(entry),
       };
     },
     sheet: (
@@ -89,6 +95,39 @@ export function useQueueEntryControls(): {
                 <Typography type={textRole.supporting.type} color="muted">
                   Called {menuFor.callCount} times
                 </Typography>
+              ) : null}
+              {menuFor ? (
+                <PressableFeedback
+                  onPress={() => {
+                    const entry = menuFor;
+                    setMenuFor(null);
+                    callPatient(entryCallTarget(entry));
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    menuFor.patientPhone
+                      ? `Call patient on ${menuFor.patientPhone}`
+                      : "Call patient. No phone number on file"
+                  }
+                  accessibilityHint="Opens your phone's dialer. The queue doesn't change."
+                  className="rounded-2xl"
+                >
+                  <View className="min-h-14 flex-row items-center gap-3 rounded-2xl bg-brand-subtle px-4 py-2">
+                    <MaterialCommunityIcons
+                      name="phone-outline"
+                      size={iconSize.md}
+                      color={menuFor.patientPhone ? vivid : muted}
+                    />
+                    <View className="flex-1">
+                      <Typography type={textRole.bodyStrong.type} weight="semibold">
+                        Call patient
+                      </Typography>
+                      <Typography type={textRole.caption.type} color="muted">
+                        {menuFor.patientPhone || "No phone number on file"}
+                      </Typography>
+                    </View>
+                  </View>
+                </PressableFeedback>
               ) : null}
               <View className="gap-1.5">
                 {secondary.map((action) => (

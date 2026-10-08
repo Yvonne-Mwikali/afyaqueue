@@ -58,7 +58,6 @@ export default function StaffQueueRoute(): JSX.Element {
       titleVariant="screen"
       initials={initials}
       onPressProfile={() => router.navigate("/staff/settings")}
-      onPressNotifications={() => undefined}
     />
   );
 

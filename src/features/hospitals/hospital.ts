@@ -5,6 +5,11 @@ export type Hospital = {
   shortName?: string;
   /** Free text such as "Ngong Road, Nairobi". */
   location?: string;
+  /** Contact details (see hospital-contact.ts); absent when not provided. */
+  phone?: string;
+  supportPhone?: string;
+  emergencyPhone?: string;
+  email?: string;
 };
 
 /** Hospital-level roles (patients are not members; see HospitalPatient). */

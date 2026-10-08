@@ -46,8 +46,6 @@ export default function PatientQueueRoute(): JSX.Element {
         initials={initials}
         onPressProfile={() => router.navigate("/profile")}
         // Notifications are not built yet.
-        onPressNotifications={() => undefined}
-        hasUnreadNotifications
       />
       {otherHospital ? (
         <View className="flex-row items-center gap-3 rounded-2xl bg-brand-subtle/50 px-4 py-3">

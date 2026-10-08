@@ -62,7 +62,6 @@ export default function StaffPatientsRoute(): JSX.Element {
         initials={initials}
         onPressProfile={() => router.navigate("/staff/settings")}
         // Notifications are not built yet.
-        onPressNotifications={() => undefined}
       />
 
       <View className="gap-4">

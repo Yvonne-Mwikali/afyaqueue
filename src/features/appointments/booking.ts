@@ -13,6 +13,8 @@ export type BookingRequest = {
   doctorId: string | null;
   scheduledAt: Date | null;
   visitType?: ServiceMode;
+  /** For the confirmation notification ("…at AfyaCare Hospital"). */
+  hospitalName?: string;
 };
 
 /** A request that passed validation, ready for the repository. */
@@ -24,6 +26,8 @@ export type NewAppointment = {
   scheduledAt: Date;
   durationMinutes: number;
   visitType: ServiceMode;
+  /** Patient-facing confirmation, stored as their own notification. */
+  notice: { title: string; body: string };
 };
 
 function overlaps(aStart: Date, aMinutes: number, bStart: Date, bMinutes: number): boolean {
@@ -95,5 +99,17 @@ export function prepareBooking(
     scheduledAt,
     durationMinutes: service.durationMinutes,
     visitType,
+    notice: {
+      title: "Appointment booked",
+      body: `Your ${service.name} appointment${
+        request.hospitalName ? ` at ${request.hospitalName}` : ""
+      } is confirmed for ${scheduledAt.toLocaleString([], {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      })}.`,
+    },
   };
 }

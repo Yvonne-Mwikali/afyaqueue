@@ -14,6 +14,9 @@ import type { ScheduleRepository } from "@/features/doctors/schedule-repository"
 import { firestoreDoctorRepository } from "@/features/doctors/firestore-doctor-repository";
 import { firebaseAuthService } from "@/features/auth/firebase-auth-service";
 import { firestoreServiceRepository } from "@/features/services/firestore-service-repository";
+import { firestoreNotificationRepository } from "@/features/notifications/firestore-notification-repository";
+import type { NotificationRepository } from "@/features/notifications/notification";
+import { unavailableNotificationRepository } from "@/features/notifications/unavailable-notification-repository";
 import { firestoreQueueSource } from "@/features/queues/firestore-queue-source";
 import type { QueueSource } from "@/features/queues/queue-source";
 import type { ServiceRepository } from "@/features/services/service-repository";
@@ -86,6 +89,10 @@ export const staffQueueRepository: StaffQueueRepository = isFirebaseConfigured
 export const adminRepository: AdminRepository = isFirebaseConfigured
   ? firestoreAdminRepository
   : unavailableAdminRepository;
+
+export const notificationRepository: NotificationRepository = isFirebaseConfigured
+  ? firestoreNotificationRepository
+  : unavailableNotificationRepository;
 
 export const queueSource: QueueSource = isFirebaseConfigured
   ? firestoreQueueSource

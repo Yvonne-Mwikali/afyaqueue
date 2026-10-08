@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { localDateKey } from "@/features/appointments/appointment";
 import { useActiveHospitalId, useHospitalContext } from "@/features/hospitals/hospital-context";
+import type { QueueNoticeContext } from "@/features/notifications/notification";
 import type { HoldReason, QueueAction } from "@/features/queues/queue-actions";
+import { useServiceCatalog } from "@/features/services/use-service-catalog";
 import { staffQueueRepository } from "@/lib/backend";
 
 import type { StaffQueue, StaffQueueEntry, StaffVisit } from "./staff-queue";
@@ -118,23 +120,40 @@ export function useDoctorEntries(doctorId: string | null): Live<StaffQueueEntry[
   return useLive(watch, EMPTY_ENTRIES);
 }
 
+/** "{serviceId}_{YYYY-MM-DD}" → serviceId. */
+function serviceIdOf(queueId: string): string {
+  const cut = queueId.lastIndexOf("_");
+  return cut > 0 ? queueId.slice(0, cut) : queueId;
+}
+
 /**
  * Queue actions as the signed-in member (staff, admin or doctor); the role
  * is recorded on each audit event. Rules decide what this member may touch.
+ * Service and hospital names go into the patient's notification wording.
  */
 export function useQueueActions(): {
   callNext: (queueId: string, candidates: readonly string[]) => Promise<string | null>;
   perform: (
-    entryId: string,
+    entry: Pick<StaffQueueEntry, "id" | "queueId">,
     action: Exclude<QueueAction, "call">,
     holdReason?: HoldReason
   ) => Promise<void>;
 } {
-  const { workspace } = useHospitalContext();
+  const { workspace, hospitals } = useHospitalContext();
+  const { services } = useServiceCatalog();
   const role = workspace?.role ?? "staff";
+  const hospitalName = hospitals.find((hospital) => hospital.id === workspace?.hospitalId)?.name;
+  const contextFor = (queueId: string): QueueNoticeContext => {
+    const serviceName = services.find((service) => service.id === serviceIdOf(queueId))?.name;
+    return {
+      ...(serviceName ? { serviceName } : {}),
+      ...(hospitalName ? { hospitalName } : {}),
+    };
+  };
   return {
-    callNext: (queueId, candidates) => staffQueueRepository.callNext(queueId, candidates, role),
-    perform: (entryId, action, holdReason) =>
-      staffQueueRepository.perform(entryId, action, role, holdReason),
+    callNext: (queueId, candidates) =>
+      staffQueueRepository.callNext(queueId, candidates, role, contextFor(queueId)),
+    perform: (entry, action, holdReason) =>
+      staffQueueRepository.perform(entry.id, action, role, holdReason, contextFor(entry.queueId)),
   };
 }

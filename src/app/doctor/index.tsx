@@ -34,7 +34,6 @@ export default function DoctorTodayRoute(): JSX.Element {
         subtitle={doctor ? doctor.title : "Your appointments today."}
         initials={initialsFrom(name.replace(/^Dr\.?\s+/, ""))}
         onPressProfile={() => router.navigate("/doctor/profile")}
-        onPressNotifications={() => undefined}
       />
 
       {!doctorId ? (

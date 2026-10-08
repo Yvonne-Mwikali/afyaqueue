@@ -156,6 +156,17 @@ export const firestoreQueueSource: QueueSource = {
         const queueId = queueIdFor(appointment.serviceId, date);
         const queueRef = doc(db, COLLECTIONS.queues, queueId);
         const queue = await transaction.get(queueRef);
+        // Optional: a deactivated doctor isn't readable by patients; check-in
+        // still works, only the doctor's notification is skipped.
+        const doctorDoc = appointment.doctorId
+          ? await transaction
+              .get(doc(db, COLLECTIONS.doctors, appointment.doctorId))
+              .catch(() => null)
+          : null;
+        const doctorUserId =
+          doctorDoc && typeof doctorDoc.get("userId") === "string"
+            ? (doctorDoc.get("userId") as string)
+            : null;
         const lastNumber = queue.exists() ? Number(queue.get("lastNumber") ?? 0) : 0;
         const queueNumber = lastNumber + 1;
         // Rules re-derive this from server time (rules 10–11).
@@ -198,12 +209,29 @@ export const firestoreQueueSource: QueueSource = {
           patientId,
           // Staff display name, carried over from the appointment (rules check).
           patientName: typeof data.patientName === "string" ? data.patientName : "",
+          // Callback number, carried over from the appointment (rules check).
+          patientPhone: typeof data.patientPhone === "string" ? data.patientPhone : "",
           queueNumber,
           status: "waiting",
           scheduledPriority,
           checkedInAt: serverTimestamp(),
         };
         transaction.set(doc(db, COLLECTIONS.queueEntries, appointmentId), entry);
+        // Tell the assigned doctor (if they have a login) that their patient arrived.
+        if (doctorUserId) {
+          transaction.set(doc(db, COLLECTIONS.notifications, `${appointmentId}_checkin`), {
+            userId: doctorUserId,
+            hospitalId: appointment.hospitalId,
+            type: "patient-checked-in",
+            title: "Patient checked in",
+            body: `${entry.patientName || "A patient"} is in your queue as #${queueNumber}.`,
+            read: false,
+            createdAt: serverTimestamp(),
+            relatedAppointmentId: appointmentId,
+            relatedQueueEntryId: appointmentId,
+            relatedHospitalId: appointment.hospitalId,
+          });
+        }
         const nowServing = queue.exists() ? Number(queue.get("nowServing") ?? 0) : 0;
         const minutes = queue.exists()
           ? Number(queue.get("estimatedServiceMinutes") ?? DEFAULT_SERVICE_MINUTES)

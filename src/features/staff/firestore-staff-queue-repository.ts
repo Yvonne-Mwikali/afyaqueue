@@ -2,6 +2,7 @@ import { FirebaseError } from "firebase/app";
 import {
   type DocumentSnapshot,
   type Transaction,
+  addDoc,
   collection,
   doc,
   type DocumentData,
@@ -16,6 +17,7 @@ import {
 } from "firebase/firestore";
 
 import type { MemberRole } from "@/features/hospitals/hospital";
+import { type QueueNoticeContext, queueNotice } from "@/features/notifications/notification";
 import {
   type HoldReason,
   type QueueAction,
@@ -125,6 +127,7 @@ function writeTransition(
   entry: DocumentSnapshot,
   action: QueueAction,
   actor: Actor,
+  context: QueueNoticeContext,
   holdReason?: HoldReason
 ): void {
   const db = firestore();
@@ -152,6 +155,21 @@ function writeTransition(
     queueNumber: data.queueNumber,
     patientName: data.patientName ?? "",
   });
+  // The patient's notification for this exact event: "{entryId}_{n}" is
+  // create-only, so a retried or repeated write can't duplicate it.
+  const notice = queueNotice(action, Number(data.queueNumber), context);
+  if (notice && typeof data.patientId === "string") {
+    transaction.set(doc(db, COLLECTIONS.notifications, `${entry.id}_${eventCount}`), {
+      userId: data.patientId,
+      hospitalId: data.hospitalId,
+      ...notice,
+      read: false,
+      createdAt: serverTimestamp(),
+      relatedAppointmentId: String(data.appointmentId),
+      relatedQueueEntryId: entry.id,
+      relatedHospitalId: data.hospitalId,
+    });
+  }
   if (action === "complete" || action === "no-show") {
     transaction.update(doc(db, COLLECTIONS.appointments, String(data.appointmentId)), {
       status: action === "complete" ? "completed" : "no-show",
@@ -174,6 +192,8 @@ function parseVisit(id: string, data: DocumentData): StaffVisit | null {
   return {
     appointmentId: id,
     patientName: typeof data.patientName === "string" ? data.patientName : "",
+    patientId: typeof data.patientId === "string" ? data.patientId : "",
+    patientPhone: typeof data.patientPhone === "string" ? data.patientPhone : "",
     serviceId: data.serviceId,
     doctorId: typeof data.doctorId === "string" ? data.doctorId : null,
     scheduledAt: dateOf(data.scheduledAt),
@@ -229,6 +249,8 @@ function subscribeEntries(
             callCount: typeof data.callCount === "number" ? data.callCount : 0,
             lastCalledAt: dateOf(data.lastCalledAt),
             serviceStartedAt: dateOf(data.serviceStartedAt),
+            patientId: String(data.patientId ?? ""),
+            patientPhone: typeof data.patientPhone === "string" ? data.patientPhone : "",
             patientName:
               typeof data.patientName === "string" && data.patientName
                 ? data.patientName
@@ -306,7 +328,7 @@ export const firestoreStaffQueueRepository: StaffQueueRepository = {
       onError
     ),
 
-  callNext: async (queueId, candidates, role) => {
+  callNext: async (queueId, candidates, role, context = {}) => {
     const db = firestore();
     const who = actor(role);
     const queueRef = doc(db, COLLECTIONS.queues, queueId);
@@ -323,7 +345,7 @@ export const firestoreStaffQueueRepository: StaffQueueRepository = {
             const entry = await transaction.get(entryRef);
             if (!queue.exists() || !entry.exists()) return false;
             if (entry.get("status") !== "waiting" || entry.get("queueId") !== queueId) return false;
-            writeTransition(transaction, entry, "call", who);
+            writeTransition(transaction, entry, "call", who, context);
             transaction.update(queueRef, {
               nowServing: entry.get("queueNumber"),
               currentEntryId: entryId,
@@ -348,7 +370,25 @@ export const firestoreStaffQueueRepository: StaffQueueRepository = {
     }
   },
 
-  perform: async (entryId, action, role, holdReason) => {
+  logCallAttempt: async (attempt, role) => {
+    try {
+      await addDoc(collection(firestore(), COLLECTIONS.callLogs), {
+        hospitalId: attempt.hospitalId,
+        appointmentId: attempt.appointmentId,
+        queueEntryId: attempt.queueEntryId,
+        patientId: attempt.patientId,
+        patientName: attempt.patientName,
+        queueNumber: attempt.queueNumber,
+        actorId: staffUid(),
+        actorRole: role,
+        at: serverTimestamp(),
+      });
+    } catch (error) {
+      rethrow(error);
+    }
+  },
+
+  perform: async (entryId, action, role, holdReason, context = {}) => {
     const db = firestore();
     const who = actor(role);
     const entryRef = doc(db, COLLECTIONS.queueEntries, entryId);
@@ -364,7 +404,7 @@ export const firestoreStaffQueueRepository: StaffQueueRepository = {
             throw new AppError("Undo Start is only possible for 2 minutes after starting.");
           }
         }
-        writeTransition(transaction, entry, action, who, holdReason);
+        writeTransition(transaction, entry, action, who, context, holdReason);
       });
     try {
       try {

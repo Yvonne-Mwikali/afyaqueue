@@ -104,26 +104,36 @@ export default function AdminAuditRoute(): JSX.Element {
           description={
             active
               ? "Try clearing a filter."
-              : "Calls, holds, starts, completions and no-shows appear here as staff and doctors work the queues."
+              : "Calls, holds, starts, completions, no-shows and phone calls to patients appear here as staff and doctors work the queues."
           }
           {...(active ? { action: { label: "Clear filters", onPress: clear } } : {})}
         />
       ) : (
         <View className="gap-2">
-          {rows.map((e) => (
-            <AdminRow
-              key={e.id}
-              title={ACTION_LABELS[e.action] ?? e.action}
-              subtitle={`#${e.queueNumber} · ${e.patientName || "Patient"} · ${serviceName(serviceOf(e.queueId))}`}
-              detail={`${STATUS[e.from] ?? e.from} → ${STATUS[e.to] ?? e.to} · ${actorName(e.by)} · ${
-                e.at
-                  ? range === "today"
-                    ? formatTime(e.at)
-                    : `${formatShortDate(e.at)} ${formatTime(e.at)}`
-                  : ""
-              }`}
-            />
-          ))}
+          {rows.map((e) => {
+            const when = e.at
+              ? range === "today"
+                ? formatTime(e.at)
+                : `${formatShortDate(e.at)} ${formatTime(e.at)}`
+              : "";
+            return e.action === "phone-call" ? (
+              <AdminRow
+                key={e.id}
+                icon="phone-outline"
+                title="Phone call"
+                subtitle={`${e.queueNumber ? `#${e.queueNumber} · ` : ""}${e.patientName || "Patient"}`}
+                // The dialer opened; whether the call connected isn't known.
+                detail={`Dialer opened · ${actorName(e.by)} · ${when}`}
+              />
+            ) : (
+              <AdminRow
+                key={e.id}
+                title={ACTION_LABELS[e.action] ?? e.action}
+                subtitle={`#${e.queueNumber} · ${e.patientName || "Patient"} · ${serviceName(serviceOf(e.queueId))}`}
+                detail={`${STATUS[e.from] ?? e.from} → ${STATUS[e.to] ?? e.to} · ${actorName(e.by)} · ${when}`}
+              />
+            );
+          })}
         </View>
       )}
 
@@ -139,6 +149,7 @@ export default function AdminAuditRoute(): JSX.Element {
                 id: a,
                 label: ACTION_LABELS[a],
               })),
+              { id: "phone-call", label: "Phone call" },
             ]}
             selected={action}
             onSelect={setAction}
@@ -167,7 +178,9 @@ export default function AdminAuditRoute(): JSX.Element {
           <FilterChips
             options={[
               { id: ALL, label: "All" },
-              ...[...new Set(events.data.map((e) => serviceOf(e.queueId)))].map((id) => ({
+              ...[
+                ...new Set(events.data.flatMap((e) => (e.queueId ? [serviceOf(e.queueId)] : []))),
+              ].map((id) => ({
                 id,
                 label: serviceName(id),
               })),

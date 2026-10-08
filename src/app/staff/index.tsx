@@ -58,7 +58,6 @@ export default function StaffOverviewRoute(): JSX.Element {
         initials={initials}
         onPressProfile={() => router.navigate("/staff/settings")}
         // Notifications are not built yet.
-        onPressNotifications={() => undefined}
       />
 
       <View className="flex-row items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
